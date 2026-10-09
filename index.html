@@ -73,6 +73,14 @@ dialog::backdrop{background:#0008}
 
 /* ========== لوحة الوقت ========== */
 .timer-switch{display:flex;gap:8px;margin:16px 0}.timer-switch button{flex:1}.timer-face{font-size:clamp(42px,10vw,72px);font-weight:650;font-variant-numeric:tabular-nums;text-align:center;direction:ltr;letter-spacing:2px;margin:24px 0;padding:18px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}.timer-actions{justify-content:center}.session-entry{border-bottom:1px solid var(--line);padding:10px 0}.session-entry:last-child{border:0}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--pri);outline-offset:2px}nav button b{font-size:13px!important;font-weight:700;letter-spacing:1px}header h1{letter-spacing:.4px} .card{border-inline-start-width:4px}
+/* Individual lesson inputs */
+.lesson-fields{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.lesson-field{display:flex;align-items:center;gap:8px;min-width:0}
+.lesson-field input{min-width:0;flex:1;margin:0}
+.lesson-remove{width:38px;height:42px;flex-shrink:0;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);color:var(--red);font-size:19px;padding:0}
+.lesson-remove:hover{background:color-mix(in srgb,var(--red) 10%,var(--card))}
+.lesson-add{background:var(--pri);color:var(--pri-t);font-weight:650;padding:8px 12px}
+.lesson-add:hover{filter:brightness(1.08)}
 /* ========== الشريط السفلي والتنبيهات ========== */
 nav{position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:10}
 nav button{flex:1;border-radius:0;background:none;padding:10px 4px;font-size:12px;color:var(--muted)}
@@ -157,6 +165,13 @@ nav button.on{background:color-mix(in srgb,var(--pri) 10%,var(--card));color:var
 .calendar-days button.weekend.selected{background:var(--pri);border-color:var(--pri);color:var(--pri-t)}
 nav button{min-width:0;flex:1 1 0}
 @media(max-width:390px){nav button{font-size:10px;padding-inline:1px}.nav-icon{width:19px;height:19px}}
+
+/* Keep numbers and mixed-language values readable in either interface direction. */
+.count,.rems span,.card h3,.card .subj,.lesson span{unicode-bidi:plaintext;}
+.local-duration{direction:ltr;text-align:start;}
+html[lang="ar"] .local-duration{direction:rtl;}
+html[lang="en"] .rems{direction:ltr;}
+html[lang="ar"] .rems{direction:rtl;}
 </style>
 </head>
 <body>
@@ -303,8 +318,11 @@ nav button{min-width:0;flex:1 1 0}
     <label>العنوان</label><input name="title" required placeholder="مثلاً: الامتحان النهائي">
     <label>التاريخ والوقت (بتوقيت البحرين)</label><input name="dt" type="datetime-local" required>
     <label>المحتوى المطلوب</label><input name="content" placeholder="مثلاً: الفصول 1 إلى 5">
-    <label>الدروس / الخطوات (سطر لكل درس، اختياري)</label>
-    <textarea name="lessons" placeholder="Chapter 1&#10;Chapter 2&#10;Chapter 3"></textarea>
+    <div class="row between" style="margin-top:12px;align-items:center">
+      <label id="lessonFieldsLabel" style="margin:0">الدروس / الخطوات (اختياري)</label>
+      <button type="button" class="lesson-add" data-act="addLessonField" id="addLessonField" aria-controls="lessonFields">+ إضافة درس</button>
+    </div>
+    <div id="lessonFields" class="lesson-fields" aria-labelledby="lessonFieldsLabel"></div>
     <label>التذكيرات (اختر أكثر من واحد)</label>
     <div class="chips" id="chips"></div>
     <div class="row" style="margin-top:8px">
@@ -366,17 +384,30 @@ const fmtDay = k => new Date(keyToUTC(k)).toLocaleDateString(S.settings.lang==='
 function plural(n, w) { return n === 1 ? w[0] : n === 2 ? w[1] : n <= 10 ? n + ' ' + w[2] : n + ' ' + w[3]; }
 const U = {d: ['يوم', 'يومين', 'أيام', 'يوم'], h: ['ساعة', 'ساعتين', 'ساعات', 'ساعة'], m: ['دقيقة', 'دقيقتين', 'دقائق', 'دقيقة']};
 function remLabel(m) {
+  const en=S.settings.lang==='en';
+  if(en){
+    if(m===10080)return '1 week before';
+    if(m%1440===0){const n=m/1440;return `${n} ${n===1?'day':'days'} before`;}
+    if(m%60===0){const n=m/60;return `${n} ${n===1?'hour':'hours'} before`;}
+    return `${m} ${m===1?'minute':'minutes'} before`;
+  }
   if (m === 10080) return 'قبل أسبوع';
   if (m % 1440 === 0) return 'قبل ' + plural(m / 1440, U.d);
   if (m % 60 === 0) return 'قبل ' + plural(m / 60, U.h);
   return 'قبل ' + plural(m, U.m);
 }
 function countdown(t) {
-  const diff = t - Date.now(), a = Math.abs(diff);
-  const d = Math.floor(a / 864e5), h = Math.floor(a % 864e5 / 36e5), m = Math.floor(a % 36e5 / 6e4);
-  const txt = d > 0 ? plural(d, U.d) + ' و ' + plural(h, U.h) : h > 0 ? plural(h, U.h) + ' و ' + plural(m, U.m) : plural(m, U.m);
-  if (diff < 0) return {txt: 'فات من ' + txt, cls: 'late'};
-  return {txt: 'باقي ' + txt, cls: diff < 48 * 36e5 ? 'soon' : 'ok'};
+  const diff=t-Date.now(),a=Math.abs(diff);
+  const d=Math.floor(a/864e5),h=Math.floor(a%864e5/36e5),m=Math.floor(a%36e5/6e4);
+  const en=S.settings.lang==='en';
+  let txt;
+  if(en){
+    const unit=(n,one,many)=>`${n} ${n===1?one:many}`;
+    txt=d>0?`${unit(d,'day','days')} and ${unit(h,'hour','hours')}`:h>0?`${unit(h,'hour','hours')} and ${unit(m,'minute','minutes')}`:unit(m,'minute','minutes');
+    return {txt:(diff<0?'Overdue by ':'Remaining: ')+txt,cls:diff<0?'late':diff<48*36e5?'soon':'ok'};
+  }
+  txt=d>0?plural(d,U.d)+' و '+plural(h,U.h):h>0?plural(h,U.h)+' و '+plural(m,U.m):plural(m,U.m);
+  return {txt:(diff<0?'فات من ':'باقي ')+txt,cls:diff<0?'late':diff<48*36e5?'soon':'ok'};
 }
 
 /* ---------- حالات الموعد والتقدم ---------- */
@@ -402,23 +433,23 @@ function toggleOpen(id, o) { o ? openSet.add(id) : openSet.delete(id); }
 function cardHTML(ev) {
   const s = subjOf(ev.subjectId), t = ms(ev), fin = isFinished(ev), p = evProgress(ev);
   const c = countdown(t);
-  const cd = fin ? '<div class="count ok">مكتمل</div>' : `<div class="count ${c.cls}">${c.txt}</div>`;
+  const cd = fin ? '<div class="count ok">مكتمل</div>' : `<div class="count ${c.cls}" dir="auto">${c.txt}</div>`;
   const done = ev.lessons.filter(l => l.done).length;
   const lessons = ev.lessons.length ? `
     <div class="bar"><i style="width:${Math.round(p * 100)}%"></i></div>
     <details ${openSet.has(ev.id) ? 'open' : ''} ontoggle="toggleOpen('${ev.id}',this.open)">
       <summary>${done}/${ev.lessons.length} درس مكتمل</summary>
       ${ev.lessons.map((l, i) => `<label class="lesson ${l.done ? 'done' : ''}" style="margin:0;color:inherit">
-        <input type="checkbox" data-act="lesson" data-ev="${ev.id}" data-i="${i}" ${l.done ? 'checked' : ''}><span>${esc(l.n)}</span></label>`).join('')}
+        <input type="checkbox" data-act="lesson" data-ev="${ev.id}" data-i="${i}" ${l.done ? 'checked' : ''}><span dir="auto">${esc(l.n)}</span></label>`).join('')}
     </details>` : '';
-  const rems = ev.reminders.length ? `<div class="rems">${ev.reminders.map(m => `<span>${remLabel(m)}</span>`).join('')}</div>` : '';
+  const rems = ev.reminders.length ? `<div class="rems">${ev.reminders.map(m => `<span class="local-duration" dir="auto">${remLabel(m)}</span>`).join('')}</div>` : '';
   const doneBtn = ev.done ? 'إرجاع' : (ev.type === 'project' || ev.type === 'assignment' ? 'تم التسليم' : 'تم');
   return `<article class="card ${fin ? 'fin' : ''}" style="--c:${s.color}">
-    <span class="badge">${TYPES[ev.type]}</span><span class="subj">${esc(s.name)}</span>
-    <h3>${esc(ev.title)}</h3>
+    <span class="badge">${TYPES[ev.type]}</span><span class="subj" dir="auto">${esc(s.name)}</span>
+    <h3 dir="auto">${esc(ev.title)}</h3>
     <div class="muted">${fmtDT(t)}</div>
     ${cd}
-    ${ev.content ? `<p class="muted">${esc(ev.content)}</p>` : ''}
+    ${ev.content ? `<p class="muted" dir="auto">${esc(ev.content)}</p>` : ''}
     ${lessons}${rems}
     <div class="actions">
       <button class="sm" data-act="done" data-ev="${ev.id}">${doneBtn}</button>
@@ -489,6 +520,32 @@ function renderChips() {
   const all = [...new Set([...PRESETS, ...tmpRem])].sort((a, b) => b - a);
   $('#chips').innerHTML = all.map(m => `<button type="button" class="chip ${tmpRem.includes(m) ? 'on' : ''}" data-act="chip" data-m="${m}">${remLabel(m)}</button>`).join('');
 }
+function lessonFieldLocale(){return S.settings.lang==='en'?'en':'ar';}
+function addLessonField(value='',focus=false){
+  const wrap=document.createElement('div');wrap.className='lesson-field';
+  const input=document.createElement('input');input.type='text';input.className='lesson-input';
+  input.value=value;input.autocomplete='off';input.maxLength=300;
+  input.placeholder=lessonFieldLocale()==='en'?'e.g. Chapter 1':'مثلاً: الفصل الأول';
+  input.setAttribute('aria-label',lessonFieldLocale()==='en'?'Lesson / step':'اسم الدرس أو الخطوة');
+  const remove=document.createElement('button');remove.type='button';remove.className='lesson-remove';
+  remove.dataset.act='removeLessonField';remove.setAttribute('aria-label',lessonFieldLocale()==='en'?'Remove lesson':'حذف الدرس');
+  remove.title=remove.getAttribute('aria-label');remove.textContent='×';
+  wrap.append(input,remove);$('#lessonFields').append(wrap);
+  if(focus)input.focus();
+}
+function refreshLessonFieldLocale(){
+ const en=lessonFieldLocale()==='en';
+ const label=$('#lessonFieldsLabel'),button=$('#addLessonField');
+ if(label)label.textContent=en?'Lessons / steps (optional)':'الدروس / الخطوات (اختياري)';
+ if(button)button.textContent=en?'+ Add lesson':'+ إضافة درس';
+ document.querySelectorAll('.lesson-input').forEach(input=>{
+  input.placeholder=en?'e.g. Chapter 1':'مثلاً: الفصل الأول';
+  input.setAttribute('aria-label',en?'Lesson / step':'اسم الدرس أو الخطوة');
+ });
+ document.querySelectorAll('.lesson-remove').forEach(b=>{
+  b.title=en?'Remove lesson':'حذف الدرس';b.setAttribute('aria-label',b.title);
+ });
+}
 function openForm(id) {
   if (!S.subjects.length) { toast('أضف مادة أول من تبويب "المواد"'); showTab('subj'); return; }
   editingId = id || null;
@@ -500,7 +557,9 @@ function openForm(id) {
   f.title.value = ev ? ev.title : '';
   f.dt.value = ev ? ev.dt : '';
   f.content.value = ev ? ev.content : '';
-  f.lessons.value = ev ? ev.lessons.map(l => l.n).join('\n') : '';
+  $('#lessonFields').replaceChildren();
+  (ev && ev.lessons.length ? ev.lessons.map(l=>l.n) : ['']).forEach(n=>addLessonField(n));
+  refreshLessonFieldLocale();
   tmpRem = ev ? ev.reminders.slice() : [1440, 120];
   renderChips();
   $('#evDlg').showModal();
@@ -510,7 +569,7 @@ function saveEvent(e) {
   const f = $('#evForm').elements;
   if (!f.title.value.trim() || !f.dt.value) return;
   const old = S.events.find(x => x.id === editingId);
-  const names = f.lessons.value.split('\n').map(s => s.trim()).filter(Boolean);
+  const names = [...document.querySelectorAll('#lessonFields .lesson-input')].map(x=>x.value.trim()).filter(Boolean);
   const lessons = names.map(n => { const o = old && old.lessons.find(l => l.n === n); return {n, done: !!(o && o.done), doneOn: o && o.doneOn}; });
   const ev = {id: old ? old.id : uid(), subjectId: f.subject.value, type: f.type.value, title: f.title.value.trim(),
     dt: f.dt.value, content: f.content.value.trim(), lessons, reminders: [...tmpRem].sort((a, b) => b - a), done: old ? old.done : false};
@@ -627,6 +686,8 @@ document.addEventListener('click', e => {
     case 'del': if (confirm('حذف هذا الموعد؟')) { S.events = S.events.filter(x => x.id !== d.ev); save(); render(); } break;
     case 'done': ev.done = !ev.done; save(); render(); break;
     case 'chip': { const m = +d.m; tmpRem = tmpRem.includes(m) ? tmpRem.filter(x => x !== m) : [...tmpRem, m]; renderChips(); break; }
+    case 'addLessonField': addLessonField('',true); break;
+    case 'removeLessonField': { b.closest('.lesson-field')?.remove(); break; }
     case 'addRem': { const m = Math.round((+$('#cuN').value || 0) * +$('#cuU').value); if (m > 0 && !tmpRem.includes(m)) tmpRem.push(m); renderChips(); break; }
     case 'ics': exportICS(false); break;
     case 'ics2': exportICS($('#icsPlan').checked); break;
@@ -804,8 +865,8 @@ function translateTextValue(raw){
   let translation=UI_EN[s];
   if(!translation){
     const p=s.match(/^([0-9]+)\/([0-9]+) درس مكتمل$/); if(p) translation=p[1]+'/'+p[2]+' lessons complete';
-    else if(s.startsWith('باقي '))translation='Remaining: '+s.slice(5);
-    else if(s.startsWith('قبل '))translation='Reminder: '+s.slice(4);
+    else if(s.startsWith('باقي '))translation='Remaining: '+englishDuration(s.slice(5));
+    else if(s.startsWith('قبل '))translation=englishDuration(s.slice(4))+' before';
     else if(s.startsWith('جلساتك السابقة'))translation='Past sessions '+s.slice('جلساتك السابقة'.length);
   }
   if(!translation){
@@ -863,7 +924,7 @@ function translateUI(){
   translatingUI=false;
 }
 function setLanguage(lang){
- S.settings.lang=lang==='en'?'en':'ar';save();render();paintTimer();updateNotificationStatus();translateUI();renderInsights();renderCalendar();
+ S.settings.lang=lang==='en'?'en':'ar';save();render();paintTimer();updateNotificationStatus();translateUI();refreshLessonFieldLocale();renderInsights();renderCalendar();
  const status=$('#timerStatus');
  if(status){const message=timerRunning?'ركز على مهمتك. أنت قدّها.':timerFinished?'أحسنت! خلص وقت التركيز.':timerElapsed>0?'خذ راحتك، وكمل وقت ما تبي.':timerMode==='stopwatch'?'ابدأ، واحسب وقت إنجازك.':'جاهز؟ البداية بخطوة.';status.textContent=tr(message);}
 }
