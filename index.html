@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17283d">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CyberJ Focus">
+<title>CyberJ | Focus</title>
+<style>
+/* ========== الألوان والمتغيرات (الوضع النهاري والليلي) ========== */
+:root{--bg:#f2f5f8;--card:#fff;--text:#142338;--muted:#64748b;--line:#dbe3ec;--pri:#17466b;--pri-t:#fff;--red:#b42332;--orange:#a56515;--green:#16754e;--r:10px}
+[data-theme=dark]{--bg:#0b1420;--card:#142235;--text:#e7edf5;--muted:#9baec4;--line:#2b3d52;--pri:#80b9d7;--pri-t:#0b1420;--red:#ff8992;--orange:#eeb86c;--green:#72d7ae}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding-bottom:84px}
+header{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+header h1{font-size:18px}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:8px 14px;background:var(--line);color:var(--text)}
+button.pri{background:var(--pri);color:var(--pri-t);font-weight:600}
+button.danger{color:var(--red)}
+button.sm{padding:5px 10px;font-size:13px}
+main{max-width:720px;margin:0 auto;padding:16px}
+.view{display:none}.view.on{display:block}
+h2{font-size:17px;margin:4px 0 12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.between{justify-content:space-between}
+.muted{color:var(--muted);font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:32px 12px;background:var(--card);border:1px dashed var(--line);border-radius:var(--r)}
+
+/* ========== بطاقة الموعد ========== */
+.card{background:var(--card);border:1px solid var(--line);border-inline-start:6px solid var(--c,var(--pri));border-radius:var(--r);padding:14px;margin-bottom:12px}
+.card.fin{opacity:.65}
+.card h3{font-size:16px;margin:6px 0 2px}
+.badge{display:inline-block;font-size:12px;padding:1px 9px;border-radius:99px;background:var(--c,var(--pri));color:#fff}
+.subj{font-size:13px;color:var(--muted);margin-inline-start:6px}
+.count{font-weight:700;margin:6px 0}
+.count.late{color:var(--red)}.count.soon{color:var(--orange)}.count.ok{color:var(--green)}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0}
+.bar>i{display:block;height:100%;background:var(--c,var(--pri));border-radius:99px;transition:width .3s}
+.rems{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.rems span{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:0 8px}
+details{margin:6px 0}
+summary{cursor:pointer;font-size:14px;color:var(--pri)}
+.lesson{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:14px}
+.lesson input{width:18px;height:18px;accent-color:var(--pri)}
+.lesson.done span{text-decoration:line-through;color:var(--muted)}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+/* ========== الخطة ========== */
+.day{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px}
+.day.today{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri)}
+.day h3{font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.warn{color:var(--orange);font-size:13px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-inline-end:4px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+
+/* ========== النماذج ========== */
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
+input,select,textarea{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+input[type=color]{padding:2px;height:40px}
+input[type=checkbox]{width:auto}
+textarea{min-height:90px;resize:vertical}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 12px;font-size:13px}
+.chip.on{background:var(--pri);color:var(--pri-t);border-color:var(--pri)}
+dialog{border:none;border-radius:var(--r);padding:18px;width:min(560px,94vw);max-height:92vh;background:var(--card);color:var(--text);margin:auto}
+dialog::backdrop{background:#0008}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ========== لوحة الوقت ========== */
+.timer-switch{display:flex;gap:8px;margin:16px 0}.timer-switch button{flex:1}.timer-face{font-size:clamp(42px,10vw,72px);font-weight:650;font-variant-numeric:tabular-nums;text-align:center;direction:ltr;letter-spacing:2px;margin:24px 0;padding:18px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}.timer-actions{justify-content:center}.session-entry{border-bottom:1px solid var(--line);padding:10px 0}.session-entry:last-child{border:0}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--pri);outline-offset:2px}nav button b{font-size:13px!important;font-weight:700;letter-spacing:1px}header h1{letter-spacing:.4px} .card{border-inline-start-width:4px}
+/* ========== الشريط السفلي والتنبيهات ========== */
+nav{position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1;border-radius:0;background:none;padding:10px 4px;font-size:12px;color:var(--muted)}
+nav button.on{color:var(--pri);font-weight:700}
+nav button b{display:block;font-size:20px;line-height:1.2}
+#toasts{position:fixed;top:60px;inset-inline:12px;z-index:50;display:flex;flex-direction:column;gap:8px;max-width:520px;margin:auto}
+.toast{background:var(--pri);color:var(--pri-t);padding:10px 14px;border-radius:12px;display:flex;justify-content:space-between;gap:10px;box-shadow:0 4px 14px #0004}
+.toast button{background:#fff3;color:inherit;padding:0 8px}
+
+/* CyberJ Focus — pared-back design system */
+:root{--bg:#f4f7f9;--card:#fff;--text:#172c3d;--muted:#647888;--line:#e4ebef;--pri:#126c79;--pri-t:#fff;--r:17px}
+[data-theme=dark]{--bg:#0c1720;--card:#14232e;--text:#f1f6f7;--muted:#a0b3bf;--line:#2a3d47;--pri:#6ed3c8;--pri-t:#10232b}
+body{line-height:1.65}main{max-width:780px;padding:24px 18px}header{padding:15px max(18px,calc((100vw - 780px)/2))}header h1{font-size:17px;letter-spacing:1px}
+button{transition:background .15s,transform .15s}button:active{transform:scale(.98)}button.pri{box-shadow:0 6px 16px #126c7920}nav{max-width:780px;margin:auto;left:0;right:0;border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0}nav button{font-size:12px;padding:10px 2px}nav button b{font-size:11px!important;opacity:.5}nav button.on{background:var(--bg)}
+.eyebrow{color:var(--pri);font-size:11px;font-weight:800;letter-spacing:2px}.welcome{background:linear-gradient(125deg,#113f4a,#176578);color:white;border-radius:20px;padding:26px 24px;margin:0 0 22px}.welcome .eyebrow{color:#abebdf}.welcome h2{font-size:clamp(21px,4vw,27px);margin:9px 0}.welcome p{opacity:.82;margin-bottom:18px;font-size:14px}.welcome .pri{background:#e6fbf6;color:#123d48;padding:11px 20px}.welcome .pri span{padding-inline-start:10px}.card,.panel,.day{box-shadow:0 3px 17px #0d283808;border-radius:16px}.badge{background:var(--bg);border:1px solid var(--line);color:var(--text);font-weight:650}.focus-head{text-align:center;margin:16px 0 22px}.focus-head h2{font-size:clamp(27px,6vw,37px);margin:5px 0}.focus-card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:clamp(18px,4vw,32px);max-width:620px;margin:auto;box-shadow:0 10px 38px #0e263b0b}.field-label{display:block;color:var(--text);font-weight:650;font-size:14px;margin:0 0 9px}.focus-input{font-size:16px;padding:13px 15px;border-radius:12px;background:var(--bg)}.mode-tabs{display:flex;background:var(--bg);padding:5px;border-radius:13px;gap:5px;margin:22px 0}.mode-tabs button{flex:1;background:transparent;padding:10px;font-size:14px}.mode-tabs button.selected{background:var(--card);color:var(--text);box-shadow:0 1px 8px #0001;font-weight:750}.duration-area{text-align:center}.preset-row{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}.preset-row button{border:1px solid var(--line);background:var(--card);border-radius:999px;font-size:13px;padding:8px 15px}.preset-row button.active{background:var(--pri);color:var(--pri-t);border-color:var(--pri)}.custom-duration{display:flex;justify-content:center;gap:10px;margin:14px auto 0;max-width:260px}.custom-duration>div{flex:1}.custom-duration label{margin:0 0 4px}.custom-duration input{text-align:center}.clock-wrap{display:grid;place-items:center;margin:26px 0 8px}.clock-ring{--progress:0%;width:min(275px,72vw);aspect-ratio:1;border-radius:50%;background:conic-gradient(var(--pri) var(--progress),var(--line) var(--progress));padding:7px;display:grid;place-items:center;box-shadow:0 0 0 9px var(--bg)}.clock-ring>div{height:100%;width:100%;border-radius:50%;background:var(--card);display:flex;flex-direction:column;justify-content:center;align-items:center}.clock-caption{font-size:13px;color:var(--muted)}.timer-face{font-size:clamp(35px,8vw,49px);font-weight:750;direction:ltr;letter-spacing:1px;font-variant-numeric:tabular-nums;margin:8px 0;background:none;border:0;padding:0;line-height:1.2}.focus-status{text-align:center;font-size:13px;color:var(--muted);margin:22px 0 16px}.focus-controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}.focus-controls button{padding:11px 17px}.focus-controls .focus-main{min-width:190px;padding:13px 24px;font-size:16px}.focus-controls .quiet{background:var(--bg);border:1px solid var(--line)}.focus-extra{margin-top:25px;border-top:1px solid var(--line);padding-top:12px}.focus-extra summary,.history-details summary{color:var(--muted);font-size:13px}.focus-extra label{margin-top:15px}.history-details{max-width:620px;margin:18px auto;padding:16px 20px;border:1px solid var(--line);border-radius:16px;background:var(--card)}.history-details[open] summary{margin-bottom:12px}.session-entry{font-size:14px}.focus-controls button[hidden],#durationFields[hidden],#customDuration[hidden]{display:none!important}
+@media(max-width:480px){main{padding:16px 12px}.row.between{align-items:flex-start}.welcome{padding:23px 20px}.focus-card{padding:20px 15px}.preset-row button{padding:7px 11px}.grid2{grid-template-columns:1fr 1fr}nav button{font-size:11px}.focus-controls .focus-main{width:100%}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* CyberJ Focus — academic visual refinement */
+:root{--bg:#e9eef3;--card:#fdfefe;--text:#17283d;--muted:#596b80;--line:#bfccd9;--pri:#234e72;--pri-t:#fff;--r:14px}
+[data-theme=dark]{--bg:#101a26;--card:#1a293b;--text:#eff4fb;--muted:#a8b8c9;--line:#44576b;--pri:#8cb9d7;--pri-t:#102033}
+body{background:var(--bg)}
+header{background:var(--card);border-bottom:1px solid var(--line);box-shadow:0 2px 12px #0c203009}
+.card,.panel,.day,.focus-card,.history-details,.empty{border:1px solid var(--line);box-shadow:0 3px 11px #152c3b0d,0 1px 2px #152c3b0b}
+.card{border-inline-start:4px solid var(--c,var(--pri))}
+input,select,textarea,.focus-input,.timer-face,.mode-tabs{border-color:var(--line)}
+.welcome{background:linear-gradient(125deg,#14283d,#24516c);border:1px solid #496a80;box-shadow:0 8px 24px #14283d24}
+.welcome .pri{background:#e9f1f5;color:#193b54}
+.eyebrow{color:#356786}.welcome .eyebrow{color:#bbd8eb}
+.clock-ring{box-shadow:0 0 0 9px var(--bg)}
+nav{background:var(--card);border:1px solid var(--line);box-shadow:0 -6px 24px #12243712}
+nav button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;padding:11px 2px 9px;min-height:64px;font-size:12px}
+nav button.on{background:color-mix(in srgb,var(--pri) 10%,var(--card));color:var(--pri)}
+.nav-icon{height:21px;width:21px;display:block;flex:none}
+.site-credit{text-align:center;max-width:780px;margin:5px auto 15px;padding:14px 12px 12px;color:var(--muted);font-size:12px}
+.site-credit a{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:7px 14px;border-radius:100px;color:inherit;text-decoration:none;border:1px solid transparent;transition:color .15s,border-color .15s}
+.site-credit a:hover,.site-credit a:focus-visible{color:var(--pri);border-color:var(--line)}
+.site-credit strong{font-weight:700;color:var(--text)}.insta-icon{height:17px;width:17px}
+@media(max-width:480px){nav button{font-size:11px}.nav-icon{width:20px;height:20px}}
+
+.brand{display:flex;align-items:center;gap:9px;min-width:0}.brand-mark{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:#f0f4f8}.brand h1{font-size:19px;white-space:nowrap;letter-spacing:-.35px}.brand h1 span{color:var(--muted);font-weight:550}.header-tools{display:flex;align-items:center;gap:8px}.header-tools button{height:39px;min-width:40px;border:1px solid var(--line);background:var(--bg);border-radius:11px}.header-tools button:hover{border-color:var(--pri)}.theme-toggle svg{height:20px;width:20px;display:block;margin:auto}.moon-icon{display:none!important}[data-theme=dark] .sun-icon{display:none!important}[data-theme=dark] .moon-icon{display:block!important}.lang-toggle{font-size:12px;font-weight:750}.site-credit{margin-bottom:90px}input,select,textarea{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--line) 20%,transparent)}@media(max-width:420px){header{padding:10px 12px}.brand h1{font-size:16px}.brand-mark{width:34px;height:34px}.header-tools{gap:5px}.header-tools button{min-width:35px;padding:6px}}
+
+/* Compact achievements and statistics */
+.insight-preview{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0;padding:14px 16px;border-radius:15px;background:var(--card);border:1px solid var(--line);box-shadow:0 3px 14px #132d4210}
+.insight-preview strong{display:block;font-size:21px;letter-spacing:.2px}.insight-preview .muted{display:block}.insight-preview button{white-space:nowrap}
+.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:14px 0}
+.stat-tile{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:15px;box-shadow:0 3px 14px #132d420b}
+.stat-tile .number{display:block;font-size:clamp(21px,5vw,29px);font-weight:750;font-variant-numeric:tabular-nums;color:var(--text);direction:ltr;text-align:start}
+.stat-tile .muted{font-size:12px}
+.stats-section{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;margin:14px 0}
+.stats-section h3{font-size:15px;margin-bottom:12px}
+.week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;min-height:150px}
+.week-col{display:flex;align-items:center;flex-direction:column;justify-content:end;gap:6px;min-width:0}
+.week-col .bar-track{display:flex;align-items:end;width:min(100%,30px);height:96px;background:var(--bg);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.week-col .bar-fill{width:100%;background:var(--pri);border-radius:5px 5px 0 0;min-height:0}
+.week-col small{font-size:10px;color:var(--muted)}
+.week-col .bar-value{font-size:10px;color:var(--muted);direction:ltr;white-space:nowrap}
+.achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.achievement{padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--bg)}
+.achievement.locked{opacity:.52}.achievement strong{display:block;font-size:14px}.achievement small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.achievement .medal{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:var(--line);color:var(--text);margin-bottom:8px;font-weight:750}
+.achievement:not(.locked) .medal{background:var(--pri);color:var(--pri-t)}
+@media(max-width:360px){.insight-preview{flex-wrap:wrap}.achievement-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><img src="./icon-192.png" class="brand-mark" alt="CyberJ Focus"><h1>CyberJ <span>Focus</span></h1></div>
+  <div class="header-tools"><button class="lang-toggle" type="button" data-act="lang" id="langToggle" aria-label="Switch to English">EN</button><button class="theme-toggle" type="button" data-act="theme" title="تبديل المظهر" aria-label="تبديل المظهر"><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5 8.5 8.5 0 1 0 20.5 14.6Z"/></svg></button></div>
+</header>
+<div id="toasts"></div>
+
+<main>
+  <!-- ========== الرئيسية: المواعيد ========== -->
+  <section class="view on" id="v-home">
+    <div class="row between" style="margin-bottom:12px">
+      <h2 style="margin:0">مواعيدك القادمة</h2>
+      <div class="row">
+        <button class="sm" data-act="ics">تصدير للتقويم</button>
+        <button class="pri" data-act="newEvent">إضافة موعد</button>
+      </div>
+    </div>
+    <div class="welcome"><span class="eyebrow">مساحتك للإنجاز</span><h2>خطوة صغيرة اليوم، فرق كبير بكرة.</h2><p>خلّ تركيزك على مهمة وحدة، والباقي علينا.</p><button class="pri" data-act="goFocus">ابدأ جلسة تركيز <span aria-hidden="true">←</span></button></div>
+    <div class="insight-preview"><div><span class="muted" id="previewHeading">وقت تركيزك هذا الأسبوع</span><strong id="previewHours">0 س 0 د</strong></div><button class="sm" data-act="openInsights" id="insightsShortcut">الإنجازات والإحصائيات ←</button></div>
+    <div id="homeList"></div>
+  </section>
+
+  <!-- ========== خطة المذاكرة ========== -->
+  <section class="view" id="v-plan">
+    <h2>خطة المذاكرة</h2>
+    <div class="panel">
+      <div class="grid2">
+        <div><label>ساعات المذاكرة المتاحة باليوم</label><input type="number" id="hoursPerDay" min="0.5" step="0.5"></div>
+        <div><label>ساعات الدرس الواحد (تقريباً)</label><input type="number" id="perLesson" min="0.25" step="0.25"></div>
+      </div>
+      <p class="muted" style="margin-top:8px">الصفحة توزع دروسك المتبقية بالتساوي على الأيام قبل كل موعد. كل ما علّمت درس "تم" تتعدل الخطة.</p>
+    </div>
+    <div id="planList"></div>
+  </section>
+
+  <!-- ========== المواد ========== -->
+  <section class="view" id="v-subj">
+    <h2>المواد</h2>
+    <form class="panel" id="subjForm">
+      <div class="grid2">
+        <div><label>اسم المادة</label><input name="name" required placeholder="مثلاً: T216A"></div>
+        <div><label>اللون</label><input name="color" type="color" value="#4f46e5"></div>
+      </div>
+      <button class="pri" style="margin-top:12px">إضافة المادة</button>
+    </form>
+    <div id="subjList"></div>
+  </section>
+
+
+  <section class="view" id="v-timer">
+    <div class="focus-head"><span class="eyebrow">FOCUS MODE</span><h2>وقتك لك.</h2><p class="muted">اختار وقتك، وابدأ. مهمة وحدة في كل مرة.</p></div>
+    <div class="focus-card" id="focusCard">
+      <label class="field-label" for="sessionName">شنو بتنجز الحين؟</label>
+      <input id="sessionName" class="focus-input" placeholder="مثلاً: مراجعة Chapter 2" maxlength="100">
+      <div class="mode-tabs" role="group" aria-label="طريقة حساب الوقت"><button type="button" class="selected" data-act="timerMode" data-mode="countdown">وقت محدد</button><button type="button" data-act="timerMode" data-mode="stopwatch">وقت مفتوح</button></div>
+      <div id="durationFields" class="duration-area"><span class="field-label">كم تبي تركز؟</span>
+        <div class="preset-row" role="group" aria-label="مدة الجلسة"><button data-act="preset" data-minutes="25" class="active">25 دقيقة</button><button data-act="preset" data-minutes="45">45 دقيقة</button><button data-act="preset" data-minutes="60">ساعة</button><button data-act="preset" data-minutes="0">تخصيص</button></div>
+        <div id="customDuration" class="custom-duration" hidden><div><label for="timerHours">الساعات</label><input type="number" id="timerHours" min="0" max="999" value="0"></div><div><label for="timerMinutes">الدقائق</label><input type="number" id="timerMinutes" min="0" max="59" value="25"></div></div>
+      </div>
+      <div class="clock-wrap"><div class="clock-ring" id="clockRing"><div><div class="clock-caption" id="clockCaption">الوقت المتبقي</div><div class="timer-face" id="timerDisplay" role="timer" aria-live="off">00:25:00</div></div></div></div>
+      <p class="focus-status" id="timerStatus" role="status">جاهز؟ البداية بخطوة.</p>
+      <div class="focus-controls"><button class="pri focus-main" data-act="timerStart" id="timerStart">ابدأ التركيز</button><button class="quiet" data-act="timerPause" id="timerPause" hidden>إيقاف مؤقت</button><button class="quiet" data-act="timerReset" id="timerReset" hidden>إعادة</button><button class="quiet" data-act="timerSave" id="timerSave" hidden>إنهاء وحفظ</button></div>
+      <details class="focus-extra"><summary>خيارات إضافية</summary><label for="sessionSubject">المادة (اختياري)</label><select id="sessionSubject"><option value="">بدون مادة</option></select></details>
+    </div>
+    <details class="history-details"><summary>جلساتك السابقة <span id="sessionCount"></span></summary><div id="sessionHistory"></div><button class="sm danger" data-act="clearSessions">مسح السجل</button></details>
+  </section>
+
+
+  <section class="view" id="v-insights">
+    <div class="row between"><h2 id="insightsHeading">إنجازاتك وإحصائياتك</h2><button class="sm" data-act="backHome" id="backInsights">العودة للرئيسية</button></div>
+    <p class="muted" id="insightsSubtitle">كل جلسة مراجعة خطوة نحو هدفك.</p>
+    <div class="stat-grid">
+      <div class="stat-tile"><span class="number" id="statTotal">0</span><span class="muted" id="labelTotal">إجمالي ساعات التركيز</span></div>
+      <div class="stat-tile"><span class="number" id="statWeek">0</span><span class="muted" id="labelWeek">التركيز آخر 7 أيام</span></div>
+      <div class="stat-tile"><span class="number" id="statSessions">0</span><span class="muted" id="labelSessions">جلسات مسجلة</span></div>
+      <div class="stat-tile"><span class="number" id="statLessons">0</span><span class="muted" id="labelLessons">دروس وخطوات مكتملة</span></div>
+    </div>
+    <div class="stats-section"><h3 id="weeklyTitle">تركيزك في آخر 7 أيام</h3><div class="week-chart" id="weekChart" role="img" aria-label="تركيز آخر سبعة أيام"></div></div>
+    <div class="stats-section"><h3 id="achievementsTitle">إنجازاتك</h3><p class="muted" id="achievementsHelp" style="margin-bottom:12px">تُفتح الإنجازات تلقائياً بناءً على تقدمك الحقيقي.</p><div class="achievement-grid" id="achievementsGrid"></div></div>
+    <p class="muted" id="insightsNote">الإحصائيات مبنية على الجلسات المحفوظة والمهام المكتملة في هذا المتصفح.</p>
+  </section>
+
+  <!-- ========== الإعدادات ========== -->
+  <section class="view" id="v-set">
+    <h2>الإعدادات والبيانات</h2>
+    <div class="panel">
+      <b>إعدادات التنبيهات والصوت</b>
+      <p class="muted">إشعارات النظام تحتاج إذن المتصفح وسياقاً آمناً (HTTPS أو localhost)، وقد لا تعمل من ملف محلي أو بعد إغلاق الصفحة. الصوت يعمل بعد التفاعل مع الصفحة، ولا يمكن ضمانه في الخلفية.</p>
+      <label><input type="checkbox" id="soundEnabled" checked> تشغيل صوت عند انتهاء الجلسة</label><label><input type="checkbox" id="notifyEnabled" checked> إظهار إشعارات النظام عند توفرها</label><p class="muted" id="notificationStatus"></p><button style="margin-top:8px" data-act="notif">تفعيل الإشعارات</button>
+    </div>
+    <div class="panel">
+      <b>التصدير للتقويم (.ics)</b>
+      <p class="muted">يضيف كل المواعيد مع تذكيراتك. افتح الملف على الجوال واختر إضافة للتقويم.</p>
+      <label><input type="checkbox" id="icsPlan"> أضف خطة المذاكرة كأحداث يومية</label>
+      <button class="pri" style="margin-top:8px" data-act="ics2">تصدير ملف التقويم</button>
+    </div>
+    <div class="panel">
+      <b>نسخة احتياطية</b>
+      <p class="muted">البيانات محفوظة في هذا المتصفح فقط. استخدم التصدير لنقلها لجهاز ثاني.</p>
+      <div class="row" style="margin-top:8px">
+        <button data-act="exportJson">تصدير</button>
+        <button data-act="importJson">استيراد</button>
+        <button class="danger" data-act="wipe">مسح البيانات</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+  </section>
+</main>
+<footer class="site-credit"><a href="https://www.instagram.com/cyberj.io/" target="_blank" rel="noopener noreferrer" aria-label="Made by cyber.io — Instagram"><svg class="insta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.8" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg><span>Made by <strong>cyber.io</strong></span></a></footer>
+
+<nav aria-label="التنقل الرئيسي">
+  <button class="on" data-act="tab" data-v="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>الرئيسية</span></button>
+  <button data-act="tab" data-v="plan"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18m-13 5 2 2 4-4"/></svg><span>خطتي</span></button>
+  <button data-act="tab" data-v="subj"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c3-1.5 5.5-1.5 8 .5 2.5-2 5-2 8-.5v14c-3-1.5-5.5-1.5-8 .5-2.5-2-5-2-8-.5zM12 6v14"/></svg><span>موادي</span></button>
+  <button data-act="tab" data-v="timer"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/></svg><span>تركيز</span></button>
+  <button data-act="tab" data-v="set"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.9 4.9 7 7m10 10 2.1 2.1M2 12h3m14 0h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>المزيد</span></button>
+</nav>
+
+<!-- ========== نافذة إضافة / تعديل موعد ========== -->
+<dialog id="evDlg">
+  <form id="evForm">
+    <h2 id="evTitle">موعد جديد</h2>
+    <div class="grid2">
+      <div><label>المادة</label><select name="subject"></select></div>
+      <div><label>النوع</label>
+        <select name="type">
+          <option value="exam">امتحان</option><option value="quiz">كويز</option>
+          <option value="project">مشروع</option><option value="assignment">أسايمنت</option>
+        </select></div>
+    </div>
+    <label>العنوان</label><input name="title" required placeholder="مثلاً: الامتحان النهائي">
+    <label>التاريخ والوقت (بتوقيت البحرين)</label><input name="dt" type="datetime-local" required>
+    <label>المحتوى المطلوب</label><input name="content" placeholder="مثلاً: الفصول 1 إلى 5">
+    <label>الدروس / الخطوات (سطر لكل درس، اختياري)</label>
+    <textarea name="lessons" placeholder="Chapter 1&#10;Chapter 2&#10;Chapter 3"></textarea>
+    <label>التذكيرات (اختر أكثر من واحد)</label>
+    <div class="chips" id="chips"></div>
+    <div class="row" style="margin-top:8px">
+      <input type="number" id="cuN" min="1" value="1" style="width:80px">
+      <select id="cuU" style="width:110px"><option value="1">دقيقة</option><option value="60">ساعة</option><option value="1440" selected>يوم</option></select>
+      <button type="button" class="sm" data-act="addRem">إضافة تذكير</button>
+    </div>
+    <div class="row between" style="margin-top:18px">
+      <button class="pri">حفظ</button>
+      <button type="button" data-act="closeDlg">إلغاء</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* =====================================================
+   مخطط الدراسة - ملف واحد
+   1) الحالة والحفظ  2) دوال التاريخ  3) الرسم (render)
+   4) النموذج  5) خطة المذاكرة  6) التقويم .ics
+   7) التذكيرات  8) الأحداث (الضغطات)
+   ===================================================== */
+
+/* ---------- 1) الحالة والحفظ ---------- */
+const KEY = 'studyPlanner.v1'; // Keep the original key to preserve existing data
+const TYPES = {exam:'امتحان', quiz:'كويز', project:'مشروع', assignment:'أسايمنت'};
+const PRESETS = [10080, 4320, 1440, 180, 120, 60, 30]; // بالدقائق
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function load() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  s = Object.assign({subjects: [], events: [], settings: {}, fired: {}, sessions: []}, s || {});
+  s.settings = Object.assign({hours: 3, perLesson: 1, dark: null}, s.settings);
+  if (!Array.isArray(s.sessions)) s.sessions = [];
+  return s;
+}
+let S = load();
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+/* ---------- 2) دوال التاريخ (توقيت البحرين UTC+3 بدون توقيت صيفي) ---------- */
+const TZ = 3 * 3600e3;
+const pad = n => String(n).padStart(2, '0');
+// "2026-10-20T09:00" (توقيت البحرين) -> ميلي ثانية عالمية
+function bhMs(str) {
+  const [d, t] = str.split('T'); const [y, m, da] = d.split('-').map(Number); const [h, mi] = t.split(':').map(Number);
+  return Date.UTC(y, m - 1, da, h - 3, mi);
+}
+const keyFromDate = d => d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+const keyOf = ms => keyFromDate(new Date(ms + TZ));            // مفتاح اليوم في البحرين
+const keyToUTC = k => { const [y, m, d] = k.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const addDays = (k, n) => keyFromDate(new Date(keyToUTC(k) + n * 864e5));
+function range(a, b) { const out = []; for (let k = a; k <= b; k = addDays(k, 1)) out.push(k); return out; }
+const ms = ev => bhMs(ev.dt);
+const fmtDT = t => new Date(t).toLocaleString('ar-u-nu-latn', {timeZone: 'Asia/Bahrain', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'});
+const fmtDay = k => new Date(keyToUTC(k)).toLocaleDateString('ar-u-nu-latn', {weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC'});
+
+function plural(n, w) { return n === 1 ? w[0] : n === 2 ? w[1] : n <= 10 ? n + ' ' + w[2] : n + ' ' + w[3]; }
+const U = {d: ['يوم', 'يومين', 'أيام', 'يوم'], h: ['ساعة', 'ساعتين', 'ساعات', 'ساعة'], m: ['دقيقة', 'دقيقتين', 'دقائق', 'دقيقة']};
+function remLabel(m) {
+  if (m === 10080) return 'قبل أسبوع';
+  if (m % 1440 === 0) return 'قبل ' + plural(m / 1440, U.d);
+  if (m % 60 === 0) return 'قبل ' + plural(m / 60, U.h);
+  return 'قبل ' + plural(m, U.m);
+}
+function countdown(t) {
+  const diff = t - Date.now(), a = Math.abs(diff);
+  const d = Math.floor(a / 864e5), h = Math.floor(a % 864e5 / 36e5), m = Math.floor(a % 36e5 / 6e4);
+  const txt = d > 0 ? plural(d, U.d) + ' و ' + plural(h, U.h) : h > 0 ? plural(h, U.h) + ' و ' + plural(m, U.m) : plural(m, U.m);
+  if (diff < 0) return {txt: 'فات من ' + txt, cls: 'late'};
+  return {txt: 'باقي ' + txt, cls: diff < 48 * 36e5 ? 'soon' : 'ok'};
+}
+
+/* ---------- حالات الموعد والتقدم ---------- */
+const isFinished = ev => ev.done || (ms(ev) < Date.now() && (ev.type === 'exam' || ev.type === 'quiz'));
+const subjOf = id => S.subjects.find(s => s.id === id) || {name: '؟', color: '#888'};
+function evProgress(ev) {
+  if (ev.lessons.length) return ev.done ? 1 : ev.lessons.filter(l => l.done).length / ev.lessons.length;
+  return ev.done ? 1 : 0;
+}
+function subjProgress(id) {
+  let tot = 0, dn = 0;
+  S.events.filter(e => e.subjectId === id).forEach(e => {
+    const w = e.lessons.length || 1;
+    tot += w; dn += evProgress(e) * w;
+  });
+  return tot ? dn / tot : 0;
+}
+
+/* ---------- 3) الرسم ---------- */
+const openSet = new Set(); // لتذكر الدروس المفتوحة
+function toggleOpen(id, o) { o ? openSet.add(id) : openSet.delete(id); }
+
+function cardHTML(ev) {
+  const s = subjOf(ev.subjectId), t = ms(ev), fin = isFinished(ev), p = evProgress(ev);
+  const c = countdown(t);
+  const cd = fin ? '<div class="count ok">مكتمل</div>' : `<div class="count ${c.cls}">${c.txt}</div>`;
+  const done = ev.lessons.filter(l => l.done).length;
+  const lessons = ev.lessons.length ? `
+    <div class="bar"><i style="width:${Math.round(p * 100)}%"></i></div>
+    <details ${openSet.has(ev.id) ? 'open' : ''} ontoggle="toggleOpen('${ev.id}',this.open)">
+      <summary>${done}/${ev.lessons.length} درس مكتمل</summary>
+      ${ev.lessons.map((l, i) => `<label class="lesson ${l.done ? 'done' : ''}" style="margin:0;color:inherit">
+        <input type="checkbox" data-act="lesson" data-ev="${ev.id}" data-i="${i}" ${l.done ? 'checked' : ''}><span>${esc(l.n)}</span></label>`).join('')}
+    </details>` : '';
+  const rems = ev.reminders.length ? `<div class="rems">${ev.reminders.map(m => `<span>${remLabel(m)}</span>`).join('')}</div>` : '';
+  const doneBtn = ev.done ? 'إرجاع' : (ev.type === 'project' || ev.type === 'assignment' ? 'تم التسليم' : 'تم');
+  return `<article class="card ${fin ? 'fin' : ''}" style="--c:${s.color}">
+    <span class="badge">${TYPES[ev.type]}</span><span class="subj">${esc(s.name)}</span>
+    <h3>${esc(ev.title)}</h3>
+    <div class="muted">${fmtDT(t)}</div>
+    ${cd}
+    ${ev.content ? `<p class="muted">${esc(ev.content)}</p>` : ''}
+    ${lessons}${rems}
+    <div class="actions">
+      <button class="sm" data-act="done" data-ev="${ev.id}">${doneBtn}</button>
+      <button class="sm" data-act="edit" data-ev="${ev.id}">تعديل</button>
+      <button class="sm danger" data-act="del" data-ev="${ev.id}">حذف</button>
+    </div></article>`;
+}
+
+function renderHome() {
+  const all = [...S.events].sort((a, b) => ms(a) - ms(b));
+  const up = all.filter(e => !isFinished(e)), fin = all.filter(isFinished).reverse();
+  let h = '';
+  if (!S.subjects.length) h = '<div class="empty">ابدأ بإضافة موادك من تبويب "المواد"، وبعدها أضف مواعيدك.</div>';
+  else if (!up.length) h = '<div class="empty">ما فيه مواعيد قادمة. اضغط "إضافة موعد" وأضف أول موعد.</div>';
+  h += up.map(cardHTML).join('');
+  if (fin.length) h += `<details style="margin-top:16px"><summary>المنتهية (${fin.length})</summary><div style="margin-top:10px">${fin.map(cardHTML).join('')}</div></details>`;
+  $('#homeList').innerHTML = h;
+}
+
+function renderSubj() {
+  $('#subjList').innerHTML = S.subjects.length ? S.subjects.map(s => {
+    const n = S.events.filter(e => e.subjectId === s.id).length, p = Math.round(subjProgress(s.id) * 100);
+    return `<div class="card" style="--c:${s.color}"><div class="row between"><b>${esc(s.name)}</b><span class="muted">${n} موعد · ${p}%</span></div>
+      <div class="bar"><i style="width:${p}%"></i></div>
+      <div class="actions"><button class="sm" data-act="renSubj" data-id="${s.id}">تسمية</button>
+      <button class="sm danger" data-act="delSubj" data-id="${s.id}">حذف</button></div></div>`;
+  }).join('') : '<div class="empty">ما أضفت أي مادة للحين.</div>';
+}
+
+/* ---------- 5) خطة المذاكرة: توزيع الدروس المتبقية على الأيام ---------- */
+function buildPlan() {
+  const now = Date.now(), today = keyOf(now), plan = {};
+  S.events.forEach(ev => {
+    if (isFinished(ev) || ms(ev) < now) return;
+    const idx = ev.lessons.map((l, i) => l.done ? -1 : i).filter(i => i >= 0);
+    // دروس خلصتها اليوم تبقى ظاهرة (مشطوبة) في قسم اليوم
+    ev.lessons.forEach((l, i) => { if (l.done && l.doneOn === today) (plan[today] = plan[today] || []).push({ev, li: i, done: true}); });
+    if (!idx.length) return;
+    let days = range(today, addDays(keyOf(ms(ev)), -1));
+    if (!days.length) days = [today];                      // الموعد اليوم
+    idx.forEach((li, k) => {
+      const d = days[Math.floor(k * days.length / idx.length)];
+      (plan[d] = plan[d] || []).push({ev, li, done: false});
+    });
+  });
+  return plan;
+}
+function renderPlan() {
+  const plan = buildPlan(), today = keyOf(Date.now()), keys = Object.keys(plan).sort();
+  const per = +S.settings.perLesson || 1, cap = +S.settings.hours || 3;
+  if (!keys.length) { $('#planList').innerHTML = '<div class="empty">ما فيه دروس مجدولة. أضف امتحان أو كويز وحط له قائمة دروس (سطر لكل درس).</div>'; return; }
+  $('#planList').innerHTML = keys.map(k => {
+    const items = plan[k], pend = items.filter(x => !x.done).length, hrs = pend * per;
+    const label = k === today ? 'اليوم · ' + fmtDay(k) : k === addDays(today, 1) ? 'بكرة · ' + fmtDay(k) : fmtDay(k);
+    return `<div class="day ${k === today ? 'today' : ''}"><h3><span>${label}</span><span class="muted">${hrs} س</span></h3>
+      ${hrs > cap ? '<div class="warn">أكثر من الوقت المتاح باليوم، فكر تبدأ بدري أو تزيد الساعات</div>' : ''}
+      ${items.map(x => { const l = x.ev.lessons[x.li], s = subjOf(x.ev.subjectId);
+        return `<label class="lesson ${x.done ? 'done' : ''}" style="margin:0;color:inherit"><input type="checkbox" data-act="lesson" data-ev="${x.ev.id}" data-i="${x.li}" ${x.done ? 'checked' : ''}>
+        <span><i class="dot" style="--c:${s.color}"></i>${esc(l.n)} <small class="muted">· ${esc(x.ev.title)}</small></span></label>`; }).join('')}</div>`;
+  }).join('');
+}
+
+function render() { renderHome(); renderPlan(); renderSubj(); renderSessions(); refreshTimerSubjects(); renderInsights(); }
+
+/* ---------- 4) نموذج الموعد ---------- */
+let editingId = null, tmpRem = [];
+function renderChips() {
+  const all = [...new Set([...PRESETS, ...tmpRem])].sort((a, b) => b - a);
+  $('#chips').innerHTML = all.map(m => `<button type="button" class="chip ${tmpRem.includes(m) ? 'on' : ''}" data-act="chip" data-m="${m}">${remLabel(m)}</button>`).join('');
+}
+function openForm(id) {
+  if (!S.subjects.length) { toast('أضف مادة أول من تبويب "المواد"'); showTab('subj'); return; }
+  editingId = id || null;
+  const ev = S.events.find(e => e.id === id), f = $('#evForm').elements;
+  f.subject.innerHTML = S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  $('#evTitle').textContent = ev ? 'تعديل الموعد' : 'موعد جديد';
+  f.subject.value = ev ? ev.subjectId : S.subjects[0].id;
+  f.type.value = ev ? ev.type : 'exam';
+  f.title.value = ev ? ev.title : '';
+  f.dt.value = ev ? ev.dt : '';
+  f.content.value = ev ? ev.content : '';
+  f.lessons.value = ev ? ev.lessons.map(l => l.n).join('\n') : '';
+  tmpRem = ev ? ev.reminders.slice() : [1440, 120];
+  renderChips();
+  $('#evDlg').showModal();
+}
+function saveEvent(e) {
+  e.preventDefault();
+  const f = $('#evForm').elements;
+  if (!f.title.value.trim() || !f.dt.value) return;
+  const old = S.events.find(x => x.id === editingId);
+  const names = f.lessons.value.split('\n').map(s => s.trim()).filter(Boolean);
+  const lessons = names.map(n => { const o = old && old.lessons.find(l => l.n === n); return {n, done: !!(o && o.done), doneOn: o && o.doneOn}; });
+  const ev = {id: old ? old.id : uid(), subjectId: f.subject.value, type: f.type.value, title: f.title.value.trim(),
+    dt: f.dt.value, content: f.content.value.trim(), lessons, reminders: [...tmpRem].sort((a, b) => b - a), done: old ? old.done : false};
+  // تنظيف التذكيرات القديمة وتعليم الفائتة كمرسلة حتى لا تنبه فجأة
+  Object.keys(S.fired).filter(k => k.startsWith(ev.id + ':')).forEach(k => delete S.fired[k]);
+  ev.reminders.forEach(m => { if (Date.now() >= ms(ev) - m * 6e4) S.fired[ev.id + ':' + m] = 1; });
+  if (old) S.events[S.events.indexOf(old)] = ev; else S.events.push(ev);
+  save(); $('#evDlg').close(); render();
+}
+
+/* ---------- 6) تصدير التقويم (.ics) ---------- */
+const icsEsc = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+function icsDate(t) { const d = new Date(t); return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + '00Z'; }
+function fold(line) { // السطر لا يزيد عن 75 بايت
+  const enc = new TextEncoder(); let out = '', cur = '', bytes = 0;
+  for (const ch of line) { const b = enc.encode(ch).length; if (bytes + b > 73) { out += cur + '\r\n '; cur = ''; bytes = 1; } cur += ch; bytes += b; }
+  return out + cur;
+}
+function buildICS(withPlan) {
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//StudyPlanner//AR//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:مخطط الدراسة'];
+  const stamp = icsDate(Date.now());
+  S.events.forEach(ev => {
+    const t = ms(ev), dur = ev.type === 'exam' ? 120 : 30;
+    L.push('BEGIN:VEVENT', 'UID:' + ev.id + '@studyplanner', 'DTSTAMP:' + stamp, 'DTSTART:' + icsDate(t), 'DTEND:' + icsDate(t + dur * 6e4),
+      'SUMMARY:' + icsEsc(TYPES[ev.type] + ': ' + ev.title + ' (' + subjOf(ev.subjectId).name + ')'),
+      'DESCRIPTION:' + icsEsc(ev.content + (ev.lessons.length ? '\n' + ev.lessons.map(l => '- ' + l.n).join('\n') : '')));
+    ev.reminders.forEach(m => L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(ev.title), 'TRIGGER:-PT' + m + 'M', 'END:VALARM'));
+    L.push('END:VEVENT');
+  });
+  if (withPlan) {
+    const plan = buildPlan();
+    Object.keys(plan).forEach(k => {
+      const todo = plan[k].filter(x => !x.done); if (!todo.length) return;
+      L.push('BEGIN:VEVENT', 'UID:plan-' + k + '@studyplanner', 'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + k.replace(/-/g, ''), 'DTEND;VALUE=DATE:' + addDays(k, 1).replace(/-/g, ''),
+        'SUMMARY:' + icsEsc('مذاكرة: ' + todo.length + ' درس'),
+        'DESCRIPTION:' + icsEsc(todo.map(x => '- ' + x.ev.lessons[x.li].n + ' (' + subjOf(x.ev.subjectId).name + ')').join('\n')), 'END:VEVENT');
+    });
+  }
+  L.push('END:VCALENDAR');
+  return L.map(fold).join('\r\n');
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+function exportICS(withPlan) {
+  if (!S.events.length) return toast('ما فيه مواعيد للتصدير');
+  download('study-planner.ics', buildICS(withPlan), 'text/calendar;charset=utf-8');
+  toast('تم! افتح الملف على جوالك وأضفه للتقويم');
+}
+
+/* ---------- 7) التذكيرات داخل الصفحة ---------- */
+function toast(msg) {
+  const d = document.createElement('div'); d.className = 'toast';
+  d.innerHTML = `<span>${esc(msg)}</span><button>إغلاق</button>`;
+  d.querySelector('button').onclick = () => d.remove();
+  $('#toasts').appendChild(d); setTimeout(() => d.remove(), 12000);
+}
+function checkReminders() {
+  const now = Date.now(); let changed = false;
+  S.events.forEach(ev => {
+    if (ev.done) return;
+    ev.reminders.forEach(m => {
+      const k = ev.id + ':' + m, t = ms(ev);
+      if (!S.fired[k] && now >= t - m * 6e4 && now < t) {
+        S.fired[k] = 1; changed = true;
+        const msg = `${TYPES[ev.type]}: ${ev.title} (${subjOf(ev.subjectId).name}) · ${countdown(t).txt}`;
+        toast('' + msg);
+        playAlert(); notifySystem('تذكير بموعد',msg);
+      }
+    });
+  });
+  if (changed) save();
+}
+
+/* ---------- الوضع الليلي والتبويبات ---------- */
+function applyTheme() {
+  const dark = S.settings.dark === null ? matchMedia('(prefers-color-scheme: dark)').matches : S.settings.dark;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.querySelector('meta[name="theme-color"]').content=dark?'#101a26':'#e8eef5';
+}
+function showTab(v) {
+  document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  window.scrollTo(0, 0);
+}
+
+/* ---------- 8) الأحداث ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.type === 'checkbox') return;
+  const d = b.dataset, ev = S.events.find(x => x.id === d.ev);
+  switch (d.act) {
+    case 'tab': showTab(d.v); break;
+    case 'goFocus': showTab('timer'); break;
+    case 'openInsights': renderInsights(); showTab('insights'); break;
+    case 'backHome': showTab('home'); break;
+    case 'preset': choosePreset(+d.minutes); break;
+    case 'lang': setLanguage(S.settings.lang==='en'?'ar':'en'); break;
+    case 'theme': S.settings.dark = document.documentElement.dataset.theme !== 'dark'; save(); applyTheme(); break;
+    case 'newEvent': openForm(); break;
+    case 'closeDlg': $('#evDlg').close(); break;
+    case 'edit': openForm(d.ev); break;
+    case 'del': if (confirm('حذف هذا الموعد؟')) { S.events = S.events.filter(x => x.id !== d.ev); save(); render(); } break;
+    case 'done': ev.done = !ev.done; save(); render(); break;
+    case 'chip': { const m = +d.m; tmpRem = tmpRem.includes(m) ? tmpRem.filter(x => x !== m) : [...tmpRem, m]; renderChips(); break; }
+    case 'addRem': { const m = Math.round((+$('#cuN').value || 0) * +$('#cuU').value); if (m > 0 && !tmpRem.includes(m)) tmpRem.push(m); renderChips(); break; }
+    case 'ics': exportICS(false); break;
+    case 'ics2': exportICS($('#icsPlan').checked); break;
+    case 'renSubj': { const s = S.subjects.find(x => x.id === d.id), n = prompt('الاسم الجديد:', s.name); if (n && n.trim()) { s.name = n.trim(); save(); render(); } break; }
+    case 'delSubj': if (confirm('حذف المادة وكل مواعيدها؟')) { S.subjects = S.subjects.filter(x => x.id !== d.id); S.events = S.events.filter(x => x.subjectId !== d.id); save(); render(); } break;
+    case 'notif': requestNotifications(); break;
+     case 'timerMode': setTimerMode(d.mode); break;
+     case 'timerStart': startTimer(); break;
+     case 'timerPause': pauseTimer(); break;
+     case 'timerReset': resetTimer(); break;
+     case 'timerSave': saveSession(); break;
+     case 'clearSessions': if(confirm('مسح سجل الجلسات؟')) { S.sessions=[];save();renderSessions();renderInsights(); } break;
+    case 'exportJson': download('study-planner-backup.json', JSON.stringify(S, null, 2), 'application/json'); break;
+    case 'importJson': $('#importFile').click(); break;
+    case 'wipe': if (confirm('تمسح كل البيانات نهائياً؟') && confirm('متأكد؟ ما يمديك ترجعها.')) { S = load.call(null); S = {subjects: [], events: [], settings: {hours: 3, perLesson: 1, dark: S.settings.dark}, fired: {}, sessions: []}; save(); render(); toast('تم المسح'); } break;
+  }
+});
+// تعليم الدروس (checkbox)
+document.addEventListener('change', e => {
+  const c = e.target.closest('[data-act=lesson]'); if (!c) return;
+  const ev = S.events.find(x => x.id === c.dataset.ev), l = ev.lessons[+c.dataset.i];
+  l.done = c.checked; if (c.checked) l.doneOn = keyOf(Date.now()); else delete l.doneOn;
+  save(); render();
+});
+$('#evForm').addEventListener('submit', saveEvent);
+$('#subjForm').addEventListener('submit', e => {
+  e.preventDefault(); const f = e.target.elements;
+  S.subjects.push({id: uid(), name: f.name.value.trim(), color: f.color.value});
+  save(); e.target.reset(); f.color.value = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); render();
+});
+$('#hoursPerDay').addEventListener('change', e => { S.settings.hours = +e.target.value || 3; save(); renderPlan(); });
+$('#perLesson').addEventListener('change', e => { S.settings.perLesson = +e.target.value || 1; save(); renderPlan(); });
+$('#importFile').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const j = JSON.parse(r.result);
+      if (!Array.isArray(j.subjects) || !Array.isArray(j.events)) throw 0;
+      if (!confirm('الاستيراد يستبدل بياناتك الحالية. تكمل؟')) return;
+      localStorage.setItem(KEY, JSON.stringify(j)); S = load(); applyTheme(); init(); toast('تم الاستيراد');
+    } catch (err) { toast('الملف غير صالح'); }
+  };
+  r.readAsText(file); e.target.value = '';
+});
+
+/* ---------- تشغيل ---------- */
+function init() {
+  $('#hoursPerDay').value = S.settings.hours; $('#perLesson').value = S.settings.perLesson;
+  $('#soundEnabled').checked = S.settings.sound !== false; $('#notifyEnabled').checked = S.settings.notify !== false; updateNotificationStatus();
+  render(); checkReminders();
+}
+/* ---------- Timer and session tracking ---------- */
+let timerMode='countdown', timerRunning=false, timerElapsed=0, timerStartedAt=0, timerTarget=1500000, timerFinished=false;
+let audioContext=null;
+const timerTime=()=>timerElapsed+(timerRunning?Math.max(0,Date.now()-timerStartedAt):0);
+function formatTimer(v){let t=Math.max(0,Math.floor(v/1000));return [Math.floor(t/3600),Math.floor(t%3600/60),t%60].map(n=>String(n).padStart(2,'0')).join(':');}
+function refreshTimerSubjects(){const el=$('#sessionSubject'),old=el.value;el.innerHTML='<option value="">بدون مادة</option>'+S.subjects.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');el.value=old;}
+function timerDuration(){return ((Math.max(0,+$('#timerHours').value||0)*60)+Math.max(0,+$('#timerMinutes').value||0))*60000;}
+function paintTimer(){const elapsed=timerTime(),remaining=timerTarget-elapsed;const shown=formatTimer(timerMode==='countdown'?remaining:elapsed);if($('#timerDisplay').textContent!==shown)$('#timerDisplay').textContent=shown;const progress=timerMode==='countdown'?Math.min(100,Math.max(0,elapsed/Math.max(1,timerTarget)*100)):0;$('#clockRing').style.setProperty('--progress',progress+'%');$('#clockCaption').textContent=timerMode==='countdown'?'الوقت المتبقي':'الوقت المنقضي';if(timerRunning&&timerMode==='countdown'&&remaining<=0&&!timerFinished){timerElapsed=timerTarget;timerRunning=false;timerFinished=true;$('#timerStatus').textContent='أحسنت! خلص وقت التركيز.';alertTimer();}syncTimerControls();}
+function syncTimerControls(){const started=timerRunning||timerElapsed>0||timerFinished;$('#timerStart').hidden=timerRunning||timerFinished;$('#timerStart').textContent=timerElapsed>0?'كمل تركيز':'ابدأ التركيز';$('#timerPause').hidden=!timerRunning;$('#timerReset').hidden=!started;$('#timerSave').hidden=!started;document.querySelectorAll('[data-act=timerMode]').forEach(b=>{b.classList.toggle('selected',b.dataset.mode===timerMode);b.disabled=timerRunning;});}
+function setTimerMode(mode){if(timerRunning)return toast('أوقف المؤقت أولاً');timerMode=mode;timerElapsed=0;timerFinished=false;$('#durationFields').hidden=mode!=='countdown';$('#timerStatus').textContent=mode==='countdown'?'جاهز؟ البداية بخطوة.':'ابدأ، واحسب وقت إنجازك.';paintTimer();}
+function choosePreset(minutes){if(timerRunning||timerElapsed>0)return toast('أنهِ الجلسة أو أعدها أولاً');document.querySelectorAll('[data-act=preset]').forEach(b=>b.classList.toggle('active',+b.dataset.minutes===minutes));$('#customDuration').hidden=minutes!==0;if(minutes){$('#timerHours').value=Math.floor(minutes/60);$('#timerMinutes').value=minutes%60;}timerTarget=timerDuration();paintTimer();}
+function startTimer(){if(timerRunning)return;if(timerMode==='countdown'&&timerElapsed===0){timerTarget=timerDuration();if(timerTarget<=0)return toast('حدد مدة أكبر من صفر');}if(timerMode==='countdown'&&timerElapsed>=timerTarget)return toast('صفّر المؤقت لبدء جلسة جديدة');timerFinished=false;timerStartedAt=Date.now();timerRunning=true;$('#timerStatus').textContent='ركز على مهمتك. أنت قدّها.';paintTimer();}
+function pauseTimer(){if(!timerRunning)return;timerElapsed=timerTime();timerRunning=false;$('#timerStatus').textContent='خذ راحتك، وكمل وقت ما تبي.';paintTimer();}
+function resetTimer(){timerRunning=false;timerElapsed=0;timerFinished=false;timerTarget=timerDuration();$('#timerStatus').textContent='جاهز لجولة جديدة.';paintTimer();}
+function saveSession(){const elapsed=Math.min(timerMode==='countdown'?timerTarget:Infinity,timerTime());if(elapsed<1000)return toast('لا يوجد وقت مسجل بعد');pauseTimer();S.sessions.unshift({id:uid(),title:$('#sessionName').value.trim()||'جلسة تركيز',subjectId:$('#sessionSubject').value,mode:timerMode,elapsed:Math.round(elapsed),at:Date.now()});save();renderSessions();renderInsights();toast('تم حفظ الجلسة');resetTimer();}
+function renderSessions(){const list=$('#sessionHistory');if(!list)return;$('#sessionCount').textContent='('+S.sessions.length+')';list.innerHTML=S.sessions.length?S.sessions.map(x=>`<div class="session-entry"><b>${esc(x.title)}</b><div class="muted">${x.subjectId?esc(subjOf(x.subjectId).name)+' · ':''}${formatTimer(x.elapsed)} · ${fmtDT(x.at)} · ${x.mode==='countdown'?'مؤقت تنازلي':'ساعة إيقاف'}</div></div>`).join(''):'<p class="muted">لا توجد جلسات محفوظة حتى الآن.</p>';}
+function playAlert(){if($('#soundEnabled').checked===false)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;audioContext=audioContext||new C();audioContext.resume();[0,.3,.6].forEach(delay=>{const o=audioContext.createOscillator(),g=audioContext.createGain(),t=audioContext.currentTime+delay;o.type='sine';o.frequency.value=740;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.15,t+.025);g.gain.exponentialRampToValueAtTime(.0001,t+.23);o.connect(g);g.connect(audioContext.destination);o.start(t);o.stop(t+.25);});}catch(e){}}
+function notifySystem(title,body){if($('#notifyEnabled').checked&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(title,{body});}catch(e){}}}
+function alertTimer(){const msg='انتهى الوقت المحدد: '+($('#sessionName').value.trim()||'جلسة التركيز');toast(msg);playAlert();notifySystem('انتهاء جلسة التركيز',msg);}
+function updateNotificationStatus(){const secure=window.isSecureContext;$('#notificationStatus').textContent=!('Notification'in window)?'المتصفح لا يدعم إشعارات النظام.':!secure?'الإشعارات غير متاحة في هذا السياق؛ افتح الصفحة عبر HTTPS أو localhost.':'حالة الإذن: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الطلب'}[Notification.permission]||Notification.permission);}
+async function requestNotifications(){if(!('Notification'in window)||!window.isSecureContext){updateNotificationStatus();return toast('إشعارات النظام غير متاحة هنا');}try{const permission=await Notification.requestPermission();updateNotificationStatus();toast(permission==='granted'?'تم السماح بالإشعارات':'لم يتم السماح بالإشعارات');}catch(e){toast('تعذر طلب الإشعارات');}}
+$('#soundEnabled').addEventListener('change',e=>{S.settings.sound=e.target.checked;save();});
+$('#notifyEnabled').addEventListener('change',e=>{S.settings.notify=e.target.checked;save();});
+$('#timerHours').addEventListener('input',()=>{if(!timerRunning&&!timerElapsed) {timerTarget=timerDuration();paintTimer();}});
+$('#timerMinutes').addEventListener('input',()=>{if(!timerRunning&&!timerElapsed) {timerTarget=timerDuration();paintTimer();}});
+document.addEventListener('visibilitychange',()=>{paintTimer();checkReminders();});
+applyTheme(); init();paintTimer();setInterval(paintTimer,250);
+setInterval(() => { renderHome(); renderPlan(); checkReminders(); }, 30000);
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
+
+/* Read-only insight calculations: no artificial points or guessed historical completions. */
+function getInsights(){
+  const sessions=Array.isArray(S.sessions)?S.sessions:[];
+  const valid=sessions.filter(x=>Number.isFinite(+x.elapsed)&&+x.elapsed>0&&Number.isFinite(+x.at));
+  const total=valid.reduce((a,x)=>a+(+x.elapsed),0);
+  const today=keyOf(Date.now());
+  const days=Array.from({length:7},(_,i)=>addDays(today,i-6));
+  const totals=days.map(k=>valid.filter(x=>keyOf(+x.at)===k).reduce((a,x)=>a+(+x.elapsed),0));
+  const lessons=S.events.reduce((a,e)=>a+(Array.isArray(e.lessons)?e.lessons.filter(l=>l.done).length:0),0);
+  const completed=S.events.filter(e=>e.done).length;
+  return {total,days,totals,weekly:totals.reduce((a,b)=>a+b,0),sessions:valid.length,lessons,completed};
+}
+function focusDuration(ms){const minutes=Math.floor(ms/60000);return (S.settings.lang==='en'?`${Math.floor(minutes/60)}h ${minutes%60}m`:`${Math.floor(minutes/60)} س ${minutes%60} د`);}
+function renderInsights(){
+  const root=$('#v-insights');if(!root)return;
+  const st=getInsights(),en=S.settings.lang==='en';
+  const t=(ar,eng)=>en?eng:ar;
+  const set=(id,value)=>{const node=$('#'+id);if(node)node.textContent=value;};
+  set('previewHeading',t('وقت تركيزك آخر 7 أيام','Focus time · last 7 days'));
+  set('previewHours',focusDuration(st.weekly));
+  set('insightsShortcut',t('الإنجازات والإحصائيات ←','Achievements & stats →'));
+  set('insightsHeading',t('إنجازاتك وإحصائياتك','Achievements & statistics'));
+  set('backInsights',t('العودة للرئيسية','Back to home'));
+  set('insightsSubtitle',t('كل جلسة مراجعة خطوة نحو هدفك.','Every focus session moves you forward.'));
+  set('labelTotal',t('إجمالي وقت التركيز','Total focus time'));
+  set('labelWeek',t('التركيز آخر 7 أيام','Focus · last 7 days'));
+  set('labelSessions',t('جلسات مسجلة','Saved sessions'));
+  set('labelLessons',t('دروس وخطوات مكتملة','Completed lessons & steps'));
+  set('weeklyTitle',t('تركيزك في آخر 7 أيام','Your focus · last 7 days'));
+  set('achievementsTitle',t('إنجازاتك','Your achievements'));
+  set('achievementsHelp',t('تُفتح الإنجازات تلقائياً بناءً على تقدمك الحقيقي.','Achievements unlock automatically as you make progress.'));
+  set('insightsNote',t('الإحصائيات من الجلسات المحفوظة والمهام المكتملة على هذا المتصفح.','Statistics are based on sessions and tasks saved in this browser.'));
+  set('statTotal',focusDuration(st.total));set('statWeek',focusDuration(st.weekly));set('statSessions',String(st.sessions));set('statLessons',String(st.lessons));
+  const max=Math.max(1,...st.totals);
+  $('#weekChart').innerHTML=st.days.map((day,i)=>{
+    const label=new Date(keyToUTC(day)).toLocaleDateString(en?'en-GB':'ar-BH',{weekday:'short',timeZone:'UTC'});
+    const mins=Math.floor(st.totals[i]/60000);
+    const h=st.totals[i]?Math.max(5,Math.round(st.totals[i]/max*100)):0;
+    return `<div class="week-col" title="${esc(day)} — ${mins} min"><span class="bar-value">${mins}${t('د','m')}</span><div class="bar-track"><div class="bar-fill" style="height:${h}%"></div></div><small>${esc(label)}</small></div>`;
+  }).join('');
+  const achievements=[
+    [t('أول خطوة','First step'),t('سجّل أول جلسة تركيز','Save your first focus session'),st.sessions>=1],
+    [t('ثبات البداية','Getting consistent'),t('أكمل 5 جلسات تركيز','Complete 5 focus sessions'),st.sessions>=5],
+    [t('10 ساعات تركيز','10 focus hours'),t('سجّل 10 ساعات مراجعة','Log 10 hours of focus'),st.total>=36000000],
+    [t('بداية الإنجاز','First completion'),t('أكمل أول درس أو مهمة','Complete your first lesson or task'),st.lessons+st.completed>=1],
+    [t('متقدم بثبات','Steady progress'),t('أكمل 10 دروس أو مهام','Complete 10 lessons or tasks'),st.lessons+st.completed>=10],
+    [t('أسبوع مثمر','Productive week'),t('ركز 5 ساعات خلال آخر 7 أيام','Focus for 5 hours in the last 7 days'),st.weekly>=18000000]
+  ];
+  $('#achievementsGrid').innerHTML=achievements.map(([title,desc,done])=>`<div class="achievement ${done?'':'locked'}"><span class="medal" aria-hidden="true">${done?'✓':'—'}</span><strong>${esc(title)}</strong><small>${esc(desc)}</small><small>${done?t('مكتمل','Unlocked'):t('لم يتحقق بعد','Not yet unlocked')}</small></div>`).join('');
+}
+
+/* Arabic / English display with persistent preference; user-written titles remain unchanged. */
+const UI_EN = {"المظهر": "Theme", "مواعيدك القادمة": "Upcoming deadlines", "تصدير للتقويم": "Export calendar", "إضافة موعد": "Add deadline", "مساحتك للإنجاز": "YOUR STUDY SPACE", "خطوة صغيرة اليوم، فرق كبير بكرة.": "A little progress today. A stronger tomorrow.", "خلّ تركيزك على مهمة وحدة، والباقي علينا.": "One task at a time. Stay focused.", "ابدأ جلسة تركيز ": "Start focusing ", "خطة المذاكرة": "Study plan", "ساعات المذاكرة المتاحة باليوم": "Study hours per day", "ساعات الدرس الواحد (تقريباً)": "Hours per lesson (approx.)", "الصفحة توزع دروسك المتبقية بالتساوي على الأيام قبل كل موعد. كل ما علّمت درس \"تم\" تتعدل الخطة.": "The planner distributes remaining lessons over available days. Completing lessons updates your plan.", "المواد": "Subjects", "اسم المادة": "Subject name", "اللون": "Color", "إضافة المادة": "Add subject", "وقتك لك.": "Make time for focus.", "اختار وقتك، وابدأ. مهمة وحدة في كل مرة.": "Choose your time, then start. One task at a time.", "شنو بتنجز الحين؟": "What will you work on?", "وقت محدد": "Countdown", "وقت مفتوح": "Stopwatch", "كم تبي تركز؟": "How long will you focus?", "25 دقيقة": "25 min", "45 دقيقة": "45 min", "ساعة": "1 hour", "تخصيص": "Custom", "الساعات": "Hours", "الدقائق": "Minutes", "الوقت المتبقي": "Time remaining", "الوقت المنقضي": "Elapsed time", "جاهز؟ البداية بخطوة.": "Ready when you are.", "ابدأ التركيز": "Start focus", "إيقاف مؤقت": "Pause", "إعادة": "Reset", "إنهاء وحفظ": "Finish & save", "خيارات إضافية": "More options", "المادة (اختياري)": "Subject (optional)", "بدون مادة": "No subject", "جلساتك السابقة ": "Past sessions ", "مسح السجل": "Clear history", "الإعدادات والبيانات": "Settings & data", "إعدادات التنبيهات والصوت": "Sound & notifications", "تشغيل صوت عند انتهاء الجلسة": "Play sound when a session ends", "إظهار إشعارات النظام عند توفرها": "Show system notifications if available", "تفعيل الإشعارات": "Enable notifications", "التصدير للتقويم (.ics)": "Calendar export (.ics)", "أضف خطة المذاكرة كأحداث يومية": "Include study plan as daily events", "تصدير ملف التقويم": "Export calendar file", "نسخة احتياطية": "Backup", "تصدير": "Export", "استيراد": "Import", "مسح البيانات": "Delete all data", "الرئيسية": "Home", "خطتي": "Plan", "موادي": "Subjects", "تركيز": "Focus", "المزيد": "More", "موعد جديد": "New deadline", "المادة": "Subject", "النوع": "Type", "امتحان": "Exam", "كويز": "Quiz", "مشروع": "Project", "أسايمنت": "Assignment", "العنوان": "Title", "التاريخ والوقت (بتوقيت البحرين)": "Date & time (Bahrain)", "المحتوى المطلوب": "Required content", "الدروس / الخطوات (سطر لكل درس، اختياري)": "Lessons / steps (one per line)", "التذكيرات (اختر أكثر من واحد)": "Reminders (choose any)", "إضافة تذكير": "Add reminder", "حفظ": "Save", "إلغاء": "Cancel", "دقيقة": "Minute", "يوم": "Day", "مكتمل": "Completed", "تم": "Done", "تم التسليم": "Submitted", "تعديل": "Edit", "حذف": "Delete", "إرجاع": "Undo", "تسمية": "Rename", "المنتهية": "Completed", "قبل أسبوع": "One week before", "ابدأ، واحسب وقت إنجازك.": "Start tracking your time.", "جاهز لجولة جديدة.": "Ready for a new round.", "ركز على مهمتك. أنت قدّها.": "Stay with your task.", "خذ راحتك، وكمل وقت ما تبي.": "Paused. Resume whenever ready.", "أحسنت! خلص وقت التركيز.": "Great work! Focus session complete.", "كمل تركيز": "Resume focus", "لا توجد جلسات محفوظة حتى الآن.": "No saved sessions yet.", "ما أضفت أي مادة للحين.": "No subjects added yet.", "مثلاً: مراجعة Chapter 2": "e.g. Review Chapter 2", "مثلاً: T216A": "e.g. T216A", "مثلاً: الامتحان النهائي": "e.g. Final exam", "إشعارات النظام تحتاج إذن المتصفح وسياقاً آمناً (HTTPS أو localhost)، وقد لا تعمل من ملف محلي أو بعد إغلاق الصفحة. الصوت يعمل بعد التفاعل مع الصفحة، ولا يمكن ضمانه في الخلفية.": "System notifications require permission and HTTPS or localhost. Alerts may not work when the site is closed. Sound requires user interaction.", "يضيف كل المواعيد مع تذكيراتك. افتح الملف على الجوال واختر إضافة للتقويم.": "Export your deadlines and reminders to your calendar.", "البيانات محفوظة في هذا المتصفح فقط. استخدم التصدير لنقلها لجهاز ثاني.": "Data is stored in this browser. Export a backup to move between devices.", "ابدأ بإضافة موادك من تبويب \"المواد\"، وبعدها أضف مواعيدك.": "Add a subject first, then create your first deadline.", "ما فيه مواعيد قادمة. اضغط \"إضافة موعد\" وأضف أول موعد.": "No upcoming deadlines. Create your first one.", "ما فيه دروس مجدولة. أضف امتحان أو كويز وحط له قائمة دروس (سطر لكل درس).": "No planned lessons yet. Add lessons to an exam or quiz."};
+const uiOriginals = new WeakMap();
+let translatingUI = false;
+function translateTextValue(raw){
+  const s=raw.trim(); if (!s) return raw;
+  let translation=UI_EN[s];
+  if(!translation){
+    const p=s.match(/^([0-9]+)\/([0-9]+) درس مكتمل$/); if(p) translation=p[1]+'/'+p[2]+' lessons complete';
+    else if(s.startsWith('باقي '))translation='Remaining: '+s.slice(5);
+    else if(s.startsWith('قبل '))translation='Reminder: '+s.slice(4);
+    else if(s.startsWith('جلساتك السابقة'))translation='Past sessions '+s.slice('جلساتك السابقة'.length);
+  }
+  return translation===undefined?raw:raw.replace(s,translation);
+}
+function translateUI(){
+  if(translatingUI)return;
+  translatingUI=true;
+  const en=S.settings.lang==='en';
+  document.documentElement.lang=en?'en':'ar';
+  document.documentElement.dir=en?'ltr':'rtl';
+  const t=$('#langToggle'); if(t){t.textContent=en?'عربي':'EN';t.setAttribute('aria-label',en?'Switch to Arabic':'Switch to English');}
+  const tree=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  let node;
+  while(node=tree.nextNode()){
+    if(node.parentElement?.closest('script,style,svg,#v-insights,.insight-preview'))continue;
+    const val=node.nodeValue;
+    let original=uiOriginals.get(node);
+    if(original===undefined || (val!==original&&val!==translateTextValue(original))) {original=val;uiOriginals.set(node,original);}
+    const wanted=en?translateTextValue(original):original;
+    if(val!==wanted)node.nodeValue=wanted;
+  }
+  document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(el=>{
+     const original=el.dataset.origPlaceholder||el.getAttribute('placeholder');
+     if(!el.dataset.origPlaceholder)el.dataset.origPlaceholder=original;
+     el.setAttribute('placeholder',en?translateTextValue(original):original);
+  });
+  translatingUI=false;
+}
+function setLanguage(lang){S.settings.lang=lang==='en'?'en':'ar';save();translateUI();renderInsights();}
+let translationPending=false;
+const uiObserver=new MutationObserver(changes=>{
+  if(translatingUI||translationPending)return;
+  if(!changes.some(m=>!m.target.closest?.('#timerDisplay,#timerStatus,#notificationStatus,#toasts')))return;
+  translationPending=true;
+  requestAnimationFrame(()=>{translationPending=false;translateUI();});
+});
+uiObserver.observe(document.body,{subtree:true,childList:true});
+setLanguage(S.settings.lang||'ar');
+
+</script>
+</body>
+</html>
