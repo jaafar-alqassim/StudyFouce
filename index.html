@@ -136,6 +136,17 @@ nav button.on{background:color-mix(in srgb,var(--pri) 10%,var(--card));color:var
 .achievement .medal{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:var(--line);color:var(--text);margin-bottom:8px;font-weight:750}
 .achievement:not(.locked) .medal{background:var(--pri);color:var(--pri-t)}
 @media(max-width:360px){.insight-preview{flex-wrap:wrap}.achievement-grid{grid-template-columns:1fr}}
+
+.calendar-cta{padding:15px 17px;background:var(--card);border:1px solid var(--line);border-radius:15px;margin:0 0 17px;box-shadow:0 3px 15px #0c233211}
+.calendar-heading{margin:8px 0 20px}.calendar-heading h2{font-size:25px;margin:5px 0}.calendar-panel{max-width:720px}
+.calendar-toolbar{justify-content:center;gap:25px;margin-bottom:17px}.calendar-toolbar h3{min-width:185px;text-align:center;font-size:18px}
+.calendar-toolbar button{font-size:24px;line-height:1;min-width:42px;background:var(--bg)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.weekdays>span{text-align:center;font-size:12px;font-weight:650;color:var(--muted);padding:9px 0}
+.calendar-days button{border:1px solid transparent;background:var(--bg);min-height:57px;border-radius:10px;padding:6px 2px;display:flex;align-items:center;justify-content:flex-start;flex-direction:column;gap:4px;font-size:14px}
+.calendar-days button.inactive{opacity:.32}.calendar-days button.today{border-color:var(--pri)}.calendar-days button.selected{background:var(--pri);color:var(--pri-t)}
+.calendar-dots{display:flex;gap:3px;justify-content:center;align-items:center;max-width:100%}.calendar-dots i{height:5px;width:5px;background:var(--green);border-radius:50%}.calendar-days button.selected .calendar-dots i{background:var(--pri-t)}
+.calendar-today{margin-top:15px}.calendar-event{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.calendar-event:last-child{border:0}.calendar-event strong{display:block}.calendar-event .muted{font-size:12px}
+@media(max-width:440px){.calendar-grid{gap:3px}.calendar-days button{min-height:49px;font-size:12px}.calendar-toolbar{gap:8px}.calendar-toolbar h3{min-width:160px}}
 </style>
 </head>
 <body>
@@ -158,7 +169,16 @@ nav button.on{background:color-mix(in srgb,var(--pri) 10%,var(--card));color:var
     </div>
     <div class="welcome"><span class="eyebrow">مساحتك للإنجاز</span><h2>خطوة صغيرة اليوم، فرق كبير بكرة.</h2><p>خلّ تركيزك على مهمة وحدة، والباقي علينا.</p><button class="pri" data-act="goFocus">ابدأ جلسة تركيز <span aria-hidden="true">←</span></button></div>
     <div class="insight-preview"><div><span class="muted" id="previewHeading">وقت تركيزك هذا الأسبوع</span><strong id="previewHours">0 س 0 د</strong></div><button class="sm" data-act="openInsights" id="insightsShortcut">الإنجازات والإحصائيات ←</button></div>
+    <div class="row between calendar-cta"><strong id="calendarHomeLabel">روزنامة مواعيدك</strong><button class="sm pri" data-act="openCalendar" id="calendarOpenButton">فتح الروزنامة</button></div>
     <div id="homeList"></div>
+  </section>
+
+  <section class="view" id="v-calendar">
+    <div class="row between calendar-heading"><div><span class="eyebrow">CYBERJ / CALENDAR</span><h2 id="calendarHeading">روزنامة الدراسة</h2></div><button class="sm pri" data-act="calendarAdd" id="calendarAddButton">إضافة موعد</button></div>
+    <div class="panel calendar-panel"><div class="row between calendar-toolbar"><button class="sm" data-act="calendarPrev" aria-label="Previous month">‹</button><h3 id="calendarMonth"></h3><button class="sm" data-act="calendarNext" aria-label="Next month">›</button></div>
+    <div id="calendarWeekdays" class="calendar-grid weekdays"></div><div id="calendarDays" class="calendar-grid calendar-days"></div>
+    <button class="sm calendar-today" data-act="calendarToday" id="calendarTodayButton">اليوم</button></div>
+    <div class="panel"><h3 id="calendarSelectedTitle"></h3><div id="calendarEvents"></div></div>
   </section>
 
   <!-- ========== خطة المذاكرة ========== -->
@@ -450,7 +470,7 @@ function renderPlan() {
   }).join('');
 }
 
-function render() { renderHome(); renderPlan(); renderSubj(); renderSessions(); refreshTimerSubjects(); renderInsights(); }
+function render() { renderHome(); renderPlan(); renderSubj(); renderSessions(); refreshTimerSubjects(); renderInsights(); renderCalendar(); }
 
 /* ---------- 4) نموذج الموعد ---------- */
 let editingId = null, tmpRem = [];
@@ -564,8 +584,9 @@ function applyTheme() {
   document.querySelector('meta[name="theme-color"]').content=dark?'#101a26':'#e8eef5';
 }
 function showTab(v) {
-  if(!['home','plan','subj','timer','set','insights'].includes(v))v='home';
+  if(!['home','plan','subj','timer','set','insights','calendar'].includes(v))v='home';
   try{localStorage.setItem('cyberj.activeTab',v);}catch(e){}
+  if(location.hash!=='#'+v)history.replaceState(null,'','#'+v);
   document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   window.scrollTo(0, 0);
@@ -577,6 +598,12 @@ document.addEventListener('click', e => {
   const d = b.dataset, ev = S.events.find(x => x.id === d.ev);
   switch (d.act) {
     case 'tab': showTab(d.v); break;
+    case 'openCalendar': renderCalendar(); showTab('calendar'); break;
+    case 'calendarPrev': moveCalendar(-1); break;
+    case 'calendarNext': moveCalendar(1); break;
+    case 'calendarToday': calendarCursor=new Date();calendarSelected=keyOf(Date.now());renderCalendar();break;
+    case 'calendarDay': calendarSelected=d.date;renderCalendar();break;
+    case 'calendarAdd':openForm();break;
     case 'goFocus': showTab('timer'); break;
     case 'openInsights': renderInsights(); showTab('insights'); break;
     case 'backHome': showTab('home'); break;
@@ -648,13 +675,13 @@ const timerTime=()=>timerElapsed+(timerRunning?Math.max(0,Date.now()-timerStarte
 function formatTimer(v){let t=Math.max(0,Math.floor(v/1000));return [Math.floor(t/3600),Math.floor(t%3600/60),t%60].map(n=>String(n).padStart(2,'0')).join(':');}
 function refreshTimerSubjects(){const el=$('#sessionSubject'),old=el.value;el.innerHTML='<option value="">بدون مادة</option>'+S.subjects.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');el.value=old;}
 function timerDuration(){return ((Math.max(0,+$('#timerHours').value||0)*60)+Math.max(0,+$('#timerMinutes').value||0))*60000;}
-function paintTimer(){const elapsed=timerTime(),remaining=timerTarget-elapsed;const shown=formatTimer(timerMode==='countdown'?remaining:elapsed);if($('#timerDisplay').textContent!==shown)$('#timerDisplay').textContent=shown;const progress=timerMode==='countdown'?Math.min(100,Math.max(0,elapsed/Math.max(1,timerTarget)*100)):0;$('#clockRing').style.setProperty('--progress',progress+'%');$('#clockCaption').textContent=tr(timerMode==='countdown'?'الوقت المتبقي':'الوقت المنقضي');if(timerRunning&&timerMode==='countdown'&&remaining<=0&&!timerFinished){timerElapsed=timerTarget;timerRunning=false;timerFinished=true;$('#timerStatus').textContent='أحسنت! خلص وقت التركيز.';alertTimer();}syncTimerControls();}
+function paintTimer(){const elapsed=timerTime(),remaining=timerTarget-elapsed;const shown=formatTimer(timerMode==='countdown'?remaining:elapsed);if($('#timerDisplay').textContent!==shown)$('#timerDisplay').textContent=shown;const progress=timerMode==='countdown'?Math.min(100,Math.max(0,elapsed/Math.max(1,timerTarget)*100)):0;$('#clockRing').style.setProperty('--progress',progress+'%');$('#clockCaption').textContent=tr(timerMode==='countdown'?'الوقت المتبقي':'الوقت المنقضي');if(timerRunning&&timerMode==='countdown'&&remaining<=0&&!timerFinished){timerElapsed=timerTarget;timerRunning=false;timerFinished=true;$('#timerStatus').textContent=tr('أحسنت! خلص وقت التركيز.');alertTimer();}syncTimerControls();}
 function syncTimerControls(){const started=timerRunning||timerElapsed>0||timerFinished;$('#timerStart').hidden=timerRunning||timerFinished;$('#timerStart').textContent=tr(timerElapsed>0?'كمل تركيز':'ابدأ التركيز');$('#timerPause').hidden=!timerRunning;$('#timerReset').hidden=!started;$('#timerSave').hidden=!started;document.querySelectorAll('[data-act=timerMode]').forEach(b=>{b.classList.toggle('selected',b.dataset.mode===timerMode);b.disabled=timerRunning;});}
 function setTimerMode(mode){if(timerRunning)return toast('أوقف المؤقت أولاً');timerMode=mode;timerElapsed=0;timerFinished=false;$('#durationFields').hidden=mode!=='countdown';$('#timerStatus').textContent=mode==='countdown'?'جاهز؟ البداية بخطوة.':'ابدأ، واحسب وقت إنجازك.';paintTimer();}
 function choosePreset(minutes){if(timerRunning||timerElapsed>0)return toast('أنهِ الجلسة أو أعدها أولاً');document.querySelectorAll('[data-act=preset]').forEach(b=>b.classList.toggle('active',+b.dataset.minutes===minutes));$('#customDuration').hidden=minutes!==0;if(minutes){$('#timerHours').value=Math.floor(minutes/60);$('#timerMinutes').value=minutes%60;}timerTarget=timerDuration();paintTimer();}
-function startTimer(){if(timerRunning)return;if(timerMode==='countdown'&&timerElapsed===0){timerTarget=timerDuration();if(timerTarget<=0)return toast('حدد مدة أكبر من صفر');}if(timerMode==='countdown'&&timerElapsed>=timerTarget)return toast('صفّر المؤقت لبدء جلسة جديدة');timerFinished=false;timerStartedAt=Date.now();timerRunning=true;$('#timerStatus').textContent='ركز على مهمتك. أنت قدّها.';paintTimer();}
-function pauseTimer(){if(!timerRunning)return;timerElapsed=timerTime();timerRunning=false;$('#timerStatus').textContent='خذ راحتك، وكمل وقت ما تبي.';paintTimer();}
-function resetTimer(){timerRunning=false;timerElapsed=0;timerFinished=false;timerTarget=timerDuration();$('#timerStatus').textContent='جاهز لجولة جديدة.';paintTimer();}
+function startTimer(){if(timerRunning)return;if(timerMode==='countdown'&&timerElapsed===0){timerTarget=timerDuration();if(timerTarget<=0)return toast('حدد مدة أكبر من صفر');}if(timerMode==='countdown'&&timerElapsed>=timerTarget)return toast('صفّر المؤقت لبدء جلسة جديدة');timerFinished=false;timerStartedAt=Date.now();timerRunning=true;$('#timerStatus').textContent=tr('ركز على مهمتك. أنت قدّها.');paintTimer();}
+function pauseTimer(){if(!timerRunning)return;timerElapsed=timerTime();timerRunning=false;$('#timerStatus').textContent=tr('خذ راحتك، وكمل وقت ما تبي.');paintTimer();}
+function resetTimer(){timerRunning=false;timerElapsed=0;timerFinished=false;timerTarget=timerDuration();$('#timerStatus').textContent=tr('جاهز لجولة جديدة.');paintTimer();}
 function saveSession(){const elapsed=Math.min(timerMode==='countdown'?timerTarget:Infinity,timerTime());if(elapsed<1000)return toast('لا يوجد وقت مسجل بعد');pauseTimer();S.sessions.unshift({id:uid(),title:$('#sessionName').value.trim()||'جلسة تركيز',subjectId:$('#sessionSubject').value,mode:timerMode,elapsed:Math.round(elapsed),at:Date.now()});save();renderSessions();renderInsights();toast('تم حفظ الجلسة');resetTimer();}
 function renderSessions(){const list=$('#sessionHistory');if(!list)return;$('#sessionCount').textContent='('+S.sessions.length+')';list.innerHTML=S.sessions.length?S.sessions.map(x=>`<div class="session-entry"><b>${esc(x.title)}</b><div class="muted">${x.subjectId?esc(subjOf(x.subjectId).name)+' · ':''}${formatTimer(x.elapsed)} · ${fmtDT(x.at)} · ${x.mode==='countdown'?'مؤقت تنازلي':'ساعة إيقاف'}</div></div>`).join(''):'<p class="muted">لا توجد جلسات محفوظة حتى الآن.</p>';}
 function playAlert(){if($('#soundEnabled').checked===false)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;audioContext=audioContext||new C();audioContext.resume();[0,.3,.6].forEach(delay=>{const o=audioContext.createOscillator(),g=audioContext.createGain(),t=audioContext.currentTime+delay;o.type='sine';o.frequency.value=740;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.15,t+.025);g.gain.exponentialRampToValueAtTime(.0001,t+.23);o.connect(g);g.connect(audioContext.destination);o.start(t);o.stop(t+.25);});}catch(e){}}
@@ -667,7 +694,7 @@ $('#notifyEnabled').addEventListener('change',e=>{S.settings.notify=e.target.che
 $('#timerHours').addEventListener('input',()=>{if(!timerRunning&&!timerElapsed) {timerTarget=timerDuration();paintTimer();}});
 $('#timerMinutes').addEventListener('input',()=>{if(!timerRunning&&!timerElapsed) {timerTarget=timerDuration();paintTimer();}});
 document.addEventListener('visibilitychange',()=>{paintTimer();checkReminders();});
-applyTheme(); init();paintTimer();setInterval(paintTimer,250);
+/* Startup happens after translation resources and handlers are initialized. */
 setInterval(() => { renderHome(); renderPlan(); checkReminders(); }, 30000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
@@ -725,6 +752,36 @@ function renderInsights(){
   $('#achievementsGrid').innerHTML=achievements.map(([title,desc,done])=>`<div class="achievement ${done?'':'locked'}"><span class="medal" aria-hidden="true">${done?'✓':'—'}</span><strong>${esc(title)}</strong><small>${esc(desc)}</small><small>${done?t('مكتمل','Unlocked'):t('لم يتحقق بعد','Not yet unlocked')}</small></div>`).join('');
 }
 
+
+/* Monthly calendar is a view of the existing deadlines (no duplicate data). */
+let calendarCursor=new Date(Date.now()+3*3600000);
+let calendarSelected=keyOf(Date.now());
+function moveCalendar(offset){calendarCursor=new Date(Date.UTC(calendarCursor.getUTCFullYear(),calendarCursor.getUTCMonth()+offset,1));renderCalendar();}
+function renderCalendar(){
+ const panel=$('#calendarDays');if(!panel)return;
+ const en=S.settings.lang==='en',locale=en?'en-GB':'ar-BH';
+ const year=calendarCursor.getUTCFullYear(),month=calendarCursor.getUTCMonth();
+ const first=new Date(Date.UTC(year,month,1)),offset=(first.getUTCDay()+6)%7;
+ const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate();
+ $('#calendarMonth').textContent=first.toLocaleDateString(locale,{month:'long',year:'numeric',timeZone:'UTC'});
+ $('#calendarWeekdays').innerHTML=(en?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد']).map(x=>'<span>'+x+'</span>').join('');
+ let html='';for(let i=0;i<offset+daysInMonth;i++){
+  if(i<offset){html+='<span></span>';continue;}
+  const day=i-offset+1,k=year+'-'+pad(month+1)+'-'+pad(day),events=S.events.filter(e=>e.dt&&e.dt.startsWith(k));
+  html+=`<button type="button" data-act="calendarDay" data-date="${k}" class="${k===calendarSelected?'selected ':''}${k===keyOf(Date.now())?'today ':''}" aria-label="${k}, ${events.length} ${en?'events':'مواعيد'}"><span>${day}</span><span class="calendar-dots">${events.slice(0,3).map(()=>'<i></i>').join('')}</span></button>`;
+ }
+ panel.innerHTML=html;
+ const chosen=S.events.filter(e=>e.dt&&e.dt.startsWith(calendarSelected)).sort((a,b)=>a.dt.localeCompare(b.dt));
+ const displayDate=new Date(keyToUTC(calendarSelected)).toLocaleDateString(locale,{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+ $('#calendarSelectedTitle').textContent=displayDate;
+ $('#calendarEvents').innerHTML=chosen.length?chosen.map(e=>`<div class="calendar-event"><div><strong>${esc(e.title)}</strong><span class="muted">${esc(subjOf(e.subjectId).name)} · ${en?({exam:'Exam',quiz:'Quiz',project:'Project',assignment:'Assignment'}[e.type]||e.type):TYPES[e.type]} · ${esc(e.dt.slice(11,16))}</span></div><button class="sm" data-act="edit" data-ev="${esc(e.id)}">${en?'Edit':'تعديل'}</button></div>`).join(''):`<div class="empty">${en?'No events scheduled for this day.':'ما فيه مواعيد مسجلة في هذا اليوم.'}</div>`;
+ $('#calendarHeading').textContent=en?'Study calendar':'روزنامة الدراسة';
+ $('#calendarHomeLabel').textContent=en?'Your study calendar':'روزنامة مواعيدك';
+ $('#calendarOpenButton').textContent=en?'Open calendar':'فتح الروزنامة';
+ $('#calendarAddButton').textContent=en?'Add event':'إضافة موعد';
+ $('#calendarTodayButton').textContent=en?'Today':'اليوم';
+}
+
 /* Arabic / English display with persistent preference; user-written titles remain unchanged. */
 const UI_EN = {"المظهر": "Theme", "مواعيدك القادمة": "Upcoming deadlines", "تصدير للتقويم": "Export calendar", "إضافة موعد": "Add deadline", "مساحتك للإنجاز": "YOUR STUDY SPACE", "خطوة صغيرة اليوم، فرق كبير بكرة.": "A little progress today. A stronger tomorrow.", "خلّ تركيزك على مهمة وحدة، والباقي علينا.": "One task at a time. Stay focused.", "ابدأ جلسة تركيز ": "Start focusing ", "خطة المذاكرة": "Study plan", "ساعات المذاكرة المتاحة باليوم": "Study hours per day", "ساعات الدرس الواحد (تقريباً)": "Hours per lesson (approx.)", "الصفحة توزع دروسك المتبقية بالتساوي على الأيام قبل كل موعد. كل ما علّمت درس \"تم\" تتعدل الخطة.": "The planner distributes remaining lessons over available days. Completing lessons updates your plan.", "المواد": "Subjects", "اسم المادة": "Subject name", "اللون": "Color", "إضافة المادة": "Add subject", "وقتك لك.": "Make time for focus.", "اختار وقتك، وابدأ. مهمة وحدة في كل مرة.": "Choose your time, then start. One task at a time.", "شنو بتنجز الحين؟": "What will you work on?", "وقت محدد": "Countdown", "وقت مفتوح": "Stopwatch", "كم تبي تركز؟": "How long will you focus?", "25 دقيقة": "25 min", "45 دقيقة": "45 min", "ساعة": "1 hour", "تخصيص": "Custom", "الساعات": "Hours", "الدقائق": "Minutes", "الوقت المتبقي": "Time remaining", "الوقت المنقضي": "Elapsed time", "جاهز؟ البداية بخطوة.": "Ready when you are.", "ابدأ التركيز": "Start focus", "إيقاف مؤقت": "Pause", "إعادة": "Reset", "إنهاء وحفظ": "Finish & save", "خيارات إضافية": "More options", "المادة (اختياري)": "Subject (optional)", "بدون مادة": "No subject", "جلساتك السابقة ": "Past sessions ", "مسح السجل": "Clear history", "الإعدادات والبيانات": "Settings & data", "إعدادات التنبيهات والصوت": "Sound & notifications", "تشغيل صوت عند انتهاء الجلسة": "Play sound when a session ends", "إظهار إشعارات النظام عند توفرها": "Show system notifications if available", "تفعيل الإشعارات": "Enable notifications", "التصدير للتقويم (.ics)": "Calendar export (.ics)", "أضف خطة المذاكرة كأحداث يومية": "Include study plan as daily events", "تصدير ملف التقويم": "Export calendar file", "نسخة احتياطية": "Backup", "تصدير": "Export", "استيراد": "Import", "مسح البيانات": "Delete all data", "الرئيسية": "Home", "خطتي": "Plan", "موادي": "Subjects", "تركيز": "Focus", "المزيد": "More", "موعد جديد": "New deadline", "المادة": "Subject", "النوع": "Type", "امتحان": "Exam", "كويز": "Quiz", "مشروع": "Project", "أسايمنت": "Assignment", "العنوان": "Title", "التاريخ والوقت (بتوقيت البحرين)": "Date & time (Bahrain)", "المحتوى المطلوب": "Required content", "الدروس / الخطوات (سطر لكل درس، اختياري)": "Lessons / steps (one per line)", "التذكيرات (اختر أكثر من واحد)": "Reminders (choose any)", "إضافة تذكير": "Add reminder", "حفظ": "Save", "إلغاء": "Cancel", "دقيقة": "Minute", "يوم": "Day", "مكتمل": "Completed", "تم": "Done", "تم التسليم": "Submitted", "تعديل": "Edit", "حذف": "Delete", "إرجاع": "Undo", "تسمية": "Rename", "المنتهية": "Completed", "قبل أسبوع": "One week before", "ابدأ، واحسب وقت إنجازك.": "Start tracking your time.", "جاهز لجولة جديدة.": "Ready for a new round.", "ركز على مهمتك. أنت قدّها.": "Stay with your task.", "خذ راحتك، وكمل وقت ما تبي.": "Paused. Resume whenever ready.", "أحسنت! خلص وقت التركيز.": "Great work! Focus session complete.", "كمل تركيز": "Resume focus", "لا توجد جلسات محفوظة حتى الآن.": "No saved sessions yet.", "ما أضفت أي مادة للحين.": "No subjects added yet.", "مثلاً: مراجعة Chapter 2": "e.g. Review Chapter 2", "مثلاً: T216A": "e.g. T216A", "مثلاً: الامتحان النهائي": "e.g. Final exam", "إشعارات النظام تحتاج إذن المتصفح وسياقاً آمناً (HTTPS أو localhost)، وقد لا تعمل من ملف محلي أو بعد إغلاق الصفحة. الصوت يعمل بعد التفاعل مع الصفحة، ولا يمكن ضمانه في الخلفية.": "System notifications require permission and HTTPS or localhost. Alerts may not work when the site is closed. Sound requires user interaction.", "يضيف كل المواعيد مع تذكيراتك. افتح الملف على الجوال واختر إضافة للتقويم.": "Export your deadlines and reminders to your calendar.", "البيانات محفوظة في هذا المتصفح فقط. استخدم التصدير لنقلها لجهاز ثاني.": "Data is stored in this browser. Export a backup to move between devices.", "ابدأ بإضافة موادك من تبويب \"المواد\"، وبعدها أضف مواعيدك.": "Add a subject first, then create your first deadline.", "ما فيه مواعيد قادمة. اضغط \"إضافة موعد\" وأضف أول موعد.": "No upcoming deadlines. Create your first one.", "ما فيه دروس مجدولة. أضف امتحان أو كويز وحط له قائمة دروس (سطر لكل درس).": "No planned lessons yet. Add lessons to an exam or quiz.","الوقت المتبقي":"Time remaining","الوقت المنقضي":"Time elapsed","مؤقت تنازلي":"Countdown","ساعة إيقاف":"Stopwatch","جلسة تركيز":"Focus session","اليوم":"Today","بكرة":"Tomorrow","قبل يومين":"2 days before","قبل أسبوع":"1 week before","انتهى الوقت المحدد":"Time is up","جلسة التركيز قيد التشغيل":"Focus session running","تم حفظ الجلسة":"Session saved","لم يتم السماح بالإشعارات":"Notification permission denied","تم السماح بالإشعارات":"Notifications enabled","لا يوجد وقت مسجل بعد":"No time recorded yet","تم المسح":"Data cleared","تم الاستيراد":"Import complete","الملف غير صالح":"Invalid file","أضف مادة أول من تبويب \"المواد\"":"Add a subject first","حدد مدة أكبر من صفر":"Choose a duration greater than zero","أوقف المؤقت أولاً":"Pause the timer first","أنهِ الجلسة أو أعدها أولاً":"Finish or reset your session first","صفّر المؤقت لبدء جلسة جديدة":"Reset the timer to start a new session","مسح سجل الجلسات؟":"Clear session history?","حذف هذا الموعد؟":"Delete this deadline?","حذف المادة وكل مواعيدها؟":"Delete the subject and all its deadlines?","الاسم الجديد:":"New name:","جاهز لجولة جديدة.":"Ready for another session.","الإشعارات غير متاحة في هذا السياق؛ افتح الصفحة عبر HTTPS أو localhost.":"Notifications need HTTPS or localhost.","المتصفح لا يدعم إشعارات النظام.":"Your browser does not support system notifications.","ما فيه مواعيد للتصدير":"No deadlines to export","المزيد من الوقت المتاح باليوم، فكر تبدأ بدري أو تزيد الساعات":"Study plan exceeds the daily time available","أكثر من الوقت المتاح باليوم، فكر تبدأ بدري أو تزيد الساعات":"This exceeds your daily study time; consider starting earlier","جلساتك السابقة":"Past sessions","وقت تركيزك هذا الأسبوع":"Focus this week","أكمل":"Complete","درس مكتمل":"lesson completed","تذكير":"Reminder","تعديل الموعد":"Edit deadline","لون المادة":"Subject color","التذكيرات":"Reminders","إضافة تذكير مخصص":"Add custom reminder"};
 const uiOriginals = new WeakMap();
@@ -770,7 +827,7 @@ function translateUI(){
   const tree=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   let node;
   while(node=tree.nextNode()){
-    if(node.parentElement?.closest('script,style,svg,#v-insights,.insight-preview'))continue;
+    if(node.parentElement?.closest('script,style,svg,#v-insights,#v-calendar,#calendarHomeLabel,#calendarOpenButton,.insight-preview'))continue;
     const val=node.nodeValue;
     let original=uiOriginals.get(node);
     if(original===undefined || (val!==original&&val!==translateTextValue(original))) {original=val;uiOriginals.set(node,original);}
@@ -794,17 +851,23 @@ function translateUI(){
   document.title=en?'CyberJ Focus | Study Planner':'CyberJ Focus | مخطط الدراسة';
   translatingUI=false;
 }
-function setLanguage(lang){S.settings.lang=lang==='en'?'en':'ar';save();render();paintTimer();updateNotificationStatus();translateUI();renderInsights();}
+function setLanguage(lang){
+ S.settings.lang=lang==='en'?'en':'ar';save();render();paintTimer();updateNotificationStatus();translateUI();renderInsights();renderCalendar();
+ const status=$('#timerStatus');
+ if(status){const message=timerRunning?'ركز على مهمتك. أنت قدّها.':timerFinished?'أحسنت! خلص وقت التركيز.':timerElapsed>0?'خذ راحتك، وكمل وقت ما تبي.':timerMode==='stopwatch'?'ابدأ، واحسب وقت إنجازك.':'جاهز؟ البداية بخطوة.';status.textContent=tr(message);}
+}
 let translationPending=false;
 const uiObserver=new MutationObserver(changes=>{
   if(translatingUI||translationPending)return;
-  if(!changes.some(m=>!(m.target.nodeType===1?m.target:m.target.parentElement)?.closest?.('#timerDisplay,#timerStatus,#notificationStatus,#toasts,#weekChart')))return;
+  if(!changes.some(m=>!(m.target.nodeType===1?m.target:m.target.parentElement)?.closest?.('#timerDisplay,#timerStatus,#notificationStatus,#toasts,#weekChart,#v-calendar')))return;
   translationPending=true;
   requestAnimationFrame(()=>{translationPending=false;translateUI();});
 });
 uiObserver.observe(document.body,{subtree:true,childList:true,characterData:true});
+applyTheme();init();paintTimer();setInterval(paintTimer,1000);
 setLanguage(S.settings.lang||'ar');
-try{showTab(localStorage.getItem('cyberj.activeTab')||'home');}catch(e){showTab('home');}
+try{const hash=location.hash.slice(1),stored=localStorage.getItem('cyberj.activeTab');showTab(hash||stored||'home');}catch(e){showTab('home');}
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v)showTab(v);});
 
 </script>
 </body>
